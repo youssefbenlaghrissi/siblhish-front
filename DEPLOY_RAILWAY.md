@@ -79,7 +79,7 @@ Railway est une plateforme simple et performante pour déployer votre backend Sp
 
 ### 3.1 Créer les fichiers de configuration
 
-Créer `src/main/resources/application-railway.properties` :
+Créer `src/main/resources/application-prod.properties` :
 
 ```properties
 spring.application.name=siblhish-api
@@ -112,7 +112,7 @@ Créer à la racine du projet backend :
     "builder": "NIXPACKS"
   },
   "deploy": {
-    "startCommand": "java -jar target/*.jar --spring.profiles.active=railway",
+    "startCommand": "java -jar build/libs/*.jar --spring.profiles.active=prod",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10
   }
@@ -124,17 +124,36 @@ Créer à la racine du projet backend :
 Créer à la racine du projet backend :
 
 ```dockerfile
-FROM maven:3.9-eclipse-temurin-17 AS build
+# Stage 1: Build
+FROM gradle:8.5-jdk17 AS build
 WORKDIR /app
-COPY pom.xml .
-COPY src ./src
-RUN mvn clean package -DskipTests
 
-FROM eclipse-temurin:17-jre
+# Copy Gradle files first for better caching
+COPY build.gradle settings.gradle ./
+COPY gradle ./gradle
+
+# Download dependencies (this layer will be cached)
+RUN gradle dependencies --no-daemon || true
+
+# Copy source code
+COPY src ./src
+
+# Build the application
+RUN gradle clean build -x test --no-daemon
+
+# Stage 2: Run
+FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app
-COPY --from=build /app/target/*.jar app.jar
+
+# Copy the JAR from build stage
+# Gradle place le JAR dans build/libs/
+COPY --from=build /app/build/libs/*.jar app.jar
+
+# Expose port
 EXPOSE 8080
-ENTRYPOINT ["java", "-jar", "app.jar", "--spring.profiles.active=railway"]
+
+# Run the application
+ENTRYPOINT ["java", "-jar", "app.jar", "--spring.profiles.active=prod"]
 ```
 
 ### 3.4 Créer `.railwayignore` (optionnel)
@@ -176,7 +195,7 @@ target/
 - `PGDATABASE` : Copier depuis le service PostgreSQL
 
 **Variables Spring Boot :**
-- `SPRING_PROFILES_ACTIVE` : `railway`
+- `SPRING_PROFILES_ACTIVE` : `prod`
 - `PORT` : Railway le définit automatiquement, mais vous pouvez le forcer à `8080`
 
 **Variables pour OAuth2 (à configurer plus tard) :**
@@ -255,7 +274,7 @@ Pour déployer manuellement :
 
 1. Vérifier les logs dans Railway
 2. Vérifier que toutes les variables d'environnement sont définies
-3. Vérifier que `SPRING_PROFILES_ACTIVE=railway`
+3. Vérifier que `SPRING_PROFILES_ACTIVE=prod`
 
 ### Erreur de connexion à la base de données
 

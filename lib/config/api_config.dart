@@ -13,7 +13,7 @@ class ApiConfig {
   // 
   // NOTE: localhost ne fonctionne QUE depuis l'ordinateur, pas depuis le téléphone
   // Pour téléphone physique via USB: utiliser l'IP locale du réseau WiFi
-  static const String baseUrl = 'http://192.168.11.105:8081/api/v1';
+  static const String baseUrl = 'https://siblhish-api-production.up.railway.app/api/v1';
   
   // Timeout pour les requêtes (réduit pour détecter les erreurs plus rapidement)
   static const Duration timeout = Duration(seconds: 10);

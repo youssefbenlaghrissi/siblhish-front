@@ -5,9 +5,9 @@ class User {
   final String lastName;
   final String email;
   final String password;
-  final String type; // EMPLOYEE, FREELANCER, etc.
   final String language;
   final double? monthlySalary;
+  final bool? notificationsEnabled;
 
   User({
     required this.id,
@@ -15,9 +15,9 @@ class User {
     required this.lastName,
     required this.email,
     required this.password,
-    required this.type,
     this.language = 'fr',
     this.monthlySalary,
+    this.notificationsEnabled = true,
   });
 
   String get fullName => '$firstName $lastName';
@@ -28,9 +28,9 @@ class User {
         'lastName': lastName,
         'email': email,
         'password': password,
-        'type': type,
         'language': language,
         'monthlySalary': monthlySalary,
+        'notificationsEnabled': notificationsEnabled,
       };
 
   factory User.fromJson(Map<String, dynamic> json) => User(
@@ -39,8 +39,8 @@ class User {
         lastName: json['lastName'],
         email: json['email'],
         password: json['password'] ?? '', // Pas retourné dans UserProfileDto
-        type: json['type'] ?? 'EMPLOYEE',
         language: json['language'] ?? 'fr',
         monthlySalary: (json['monthlySalary'] as num?)?.toDouble(),
+        notificationsEnabled: json['notificationsEnabled'] ?? true,
       );
 }

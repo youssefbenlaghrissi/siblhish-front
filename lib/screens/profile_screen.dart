@@ -1,16 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../providers/budget_provider.dart';
 import '../models/user.dart';
 import '../models/category.dart';
+import '../models/budget.dart';
 import '../theme/app_theme.dart';
 import '../widgets/add_category_modal.dart';
+import '../widgets/add_budget_modal.dart';
+import '../widgets/edit_budget_modal.dart';
+import '../widgets/edit_category_color_modal.dart';
+import '../utils/color_utils.dart';
+import '../services/auth_service.dart';
+import 'notifications_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
-  const ProfileScreen({super.key});
+  final bool isVisible;
+  
+  const ProfileScreen({super.key, this.isVisible = false});
 
   @override
   Widget build(BuildContext context) {
@@ -20,6 +28,13 @@ class ProfileScreen extends StatelessWidget {
           builder: (context, provider, child) {
             final user = provider.currentUser;
             final categories = provider.categories;
+            
+            // Charger les catégories et budgets quand l'écran devient visible
+            if (isVisible && user != null) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                provider.loadCategoriesIfNeeded();
+              });
+            }
 
             return CustomScrollView(
               slivers: [
@@ -35,12 +50,9 @@ class ProfileScreen extends StatelessWidget {
                   ),
                 ),
 
-                // Monthly Salary Section
+                // Budgets Section
                 SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: _MonthlySalaryCard(user: user, provider: provider),
-                  ),
+                  child: _BudgetsSection(provider: provider),
                 ),
 
                 // Categories Header
@@ -197,22 +209,6 @@ class _UserInfoCard extends StatelessWidget {
                     color: AppTheme.textSecondary,
                   ),
                 ),
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: AppTheme.primaryColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    user?.type ?? 'EMPLOYEE',
-                    style: GoogleFonts.poppins(
-                      fontSize: 12,
-                      color: AppTheme.primaryColor,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
               ],
             ),
           ),
@@ -229,25 +225,311 @@ class _UserInfoCard extends StatelessWidget {
   }
 }
 
-class _MonthlySalaryCard extends StatelessWidget {
-  final User? user;
+class _BudgetsSection extends StatefulWidget {
   final BudgetProvider provider;
 
-  const _MonthlySalaryCard({
-    required this.user,
+  const _BudgetsSection({required this.provider});
+
+  @override
+  State<_BudgetsSection> createState() => _BudgetsSectionState();
+}
+
+class _BudgetsSectionState extends State<_BudgetsSection> {
+  DateTime _selectedMonth = DateTime.now();
+  String? _selectedMonthString;
+
+  @override
+  void initState() {
+    super.initState();
+    _updateSelectedMonth();
+    _loadBudgets();
+  }
+
+  void _updateSelectedMonth() {
+    _selectedMonthString = '${_selectedMonth.year}-${_selectedMonth.month.toString().padLeft(2, '0')}';
+  }
+
+  Future<void> _loadBudgets() async {
+    await widget.provider.loadBudgetsIfNeeded(month: _selectedMonthString);
+  }
+
+  Future<void> _selectMonth() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedMonth,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2100),
+      initialDatePickerMode: DatePickerMode.year,
+    );
+    if (picked != null) {
+      setState(() {
+        _selectedMonth = DateTime(picked.year, picked.month);
+        _updateSelectedMonth();
+      });
+      await _loadBudgets();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final budgets = widget.provider.budgets;
+    final filteredBudgets = budgets.where((budget) {
+      // Ignorer les budgets sans dates
+      if (budget.startDate == null || budget.endDate == null) {
+        return false;
+      }
+      final budgetStart = DateTime(budget.startDate!.year, budget.startDate!.month);
+      final budgetEnd = DateTime(budget.endDate!.year, budget.endDate!.month);
+      final selected = DateTime(_selectedMonth.year, _selectedMonth.month);
+      return selected.isAfter(budgetStart.subtract(const Duration(days: 1))) &&
+          selected.isBefore(budgetEnd.add(const Duration(days: 1)));
+    }).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Header
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 30, 20, 10),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              // Title "Mes Budgets"
+              Expanded(
+                child: Text(
+                  'Mes Budgets',
+                  style: GoogleFonts.poppins(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              // Month Selector with Chevrons: "< décembre, 2025 >"
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month - 1);
+                        _updateSelectedMonth();
+                      });
+                      _loadBudgets();
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: Icon(
+                        Icons.chevron_left_rounded,
+                        size: 20,
+                        color: AppTheme.textSecondary,
+                      ),
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: _selectMonth,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: Text(
+                        DateFormat('MMMM, yyyy', 'fr_FR').format(_selectedMonth),
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month + 1);
+                        _updateSelectedMonth();
+                      });
+                      _loadBudgets();
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: Icon(
+                        Icons.chevron_right_rounded,
+                        size: 20,
+                        color: AppTheme.textSecondary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+
+        // Budgets List
+        if (widget.provider.isLoadingBudgets)
+          const Padding(
+            padding: EdgeInsets.all(20),
+            child: Center(child: CircularProgressIndicator()),
+          )
+        else if (filteredBudgets.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(40),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Center(
+                    child: Column(
+                      children: [
+                        Icon(
+                          Icons.account_balance_wallet_outlined,
+                          size: 48,
+                          color: AppTheme.textSecondary,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Aucun budget pour ce mois',
+                          style: GoogleFonts.poppins(
+                            fontSize: 16,
+                            color: AppTheme.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                // Button "Ajouter un budget" at the bottom
+                TextButton.icon(
+                  onPressed: () {
+                    showModalBottomSheet(
+                      context: context,
+                      isScrollControlled: true,
+                      backgroundColor: Colors.transparent,
+                      builder: (context) => const AddBudgetModal(),
+                    ).then((_) => _loadBudgets());
+                  },
+                  icon: Icon(
+                    Icons.add_rounded,
+                    color: AppTheme.primaryColor,
+                  ),
+                  label: Text(
+                    'Ajouter un budget',
+                    style: GoogleFonts.poppins(
+                      color: AppTheme.primaryColor,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          )
+        else
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Column(
+              children: [
+                ...filteredBudgets.map((budget) {
+                  return _BudgetCard(
+                    budget: budget,
+                    provider: widget.provider,
+                    onUpdated: _loadBudgets,
+                  );
+                }).toList(),
+                const SizedBox(height: 20),
+                // Button "Ajouter un budget" at the bottom
+                TextButton.icon(
+                  onPressed: () {
+                    showModalBottomSheet(
+                      context: context,
+                      isScrollControlled: true,
+                      backgroundColor: Colors.transparent,
+                      builder: (context) => const AddBudgetModal(),
+                    ).then((_) => _loadBudgets());
+                  },
+                  icon: Icon(
+                    Icons.add_rounded,
+                    color: AppTheme.primaryColor,
+                  ),
+                  label: Text(
+                    'Ajouter un budget',
+                    style: GoogleFonts.poppins(
+                      color: AppTheme.primaryColor,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _BudgetCard extends StatelessWidget {
+  final Budget budget;
+  final BudgetProvider provider;
+  final VoidCallback onUpdated;
+
+  const _BudgetCard({
+    required this.budget,
     required this.provider,
+    required this.onUpdated,
   });
 
   @override
   Widget build(BuildContext context) {
-    final formatter = NumberFormat.currency(symbol: 'MAD ', decimalDigits: 0);
+    final category = provider.categories.firstWhere(
+      (c) => c.id == budget.categoryId,
+      orElse: () => Category(
+        id: budget.categoryId ?? '',
+        name: 'Catégorie supprimée',
+        icon: '📦',
+        color: '#9E9E9E',
+      ),
+    );
+    final categoryColor = category.color ?? '#9E9E9E';
+    final formatter = NumberFormat.currency(symbol: 'MAD ', decimalDigits: 2);
+    
+    final spent = budget.spent;
+    final total = budget.amount;
+    final percentage = budget.percentageUsed;
+    
+    // Déterminer le statut et la couleur
+    Color statusColor;
+    IconData statusIcon;
+    if (percentage >= 100) {
+      statusColor = Colors.red;
+      statusIcon = Icons.error_rounded;
+    } else if (percentage >= 80) {
+      statusColor = Colors.orange;
+      statusIcon = Icons.warning_rounded;
+    } else {
+      statusColor = Colors.green;
+      statusIcon = Icons.check_circle_rounded;
+    }
 
     return Container(
-      padding: const EdgeInsets.all(20),
-      margin: const EdgeInsets.only(bottom: 20),
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: ColorUtils.parseColor(categoryColor).withOpacity(0.2),
+          width: 1,
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
@@ -256,109 +538,99 @@ class _MonthlySalaryCard extends StatelessWidget {
           ),
         ],
       ),
-      child: Column(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Salaire mensuel',
-                style: GoogleFonts.poppins(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.edit_rounded, size: 20),
-                color: AppTheme.primaryColor,
-                onPressed: () {
-                  _showSalaryDialog(context);
-                },
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            user?.monthlySalary != null
-                ? formatter.format(user!.monthlySalary)
-                : 'Non défini',
-            style: GoogleFonts.poppins(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: user?.monthlySalary != null
-                  ? AppTheme.primaryColor
-                  : AppTheme.textSecondary,
+          // Category Icon
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: ColorUtils.parseColor(categoryColor).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              category.icon ?? '📦',
+              style: const TextStyle(fontSize: 24),
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  void _showSalaryDialog(BuildContext context) {
-    final salaryController = TextEditingController(
-      text: user?.monthlySalary?.toString() ?? '',
-    );
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          'Modifier le salaire mensuel',
-          style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
-        ),
-        content: TextField(
-          controller: salaryController,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(
-            labelText: 'Salaire mensuel',
-            prefixText: 'MAD ',
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Annuler'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final salary = double.tryParse(salaryController.text);
-              if (salary != null && salary >= 0) {
-                try {
-                  final updatedUser = User(
-                    id: user!.id,
-                    firstName: user!.firstName,
-                    lastName: user!.lastName,
-                    email: user!.email,
-                    password: user!.password,
-                    type: user!.type,
-                    language: user!.language,
-                    monthlySalary: salary,
-                  );
-                  await provider.updateUser(updatedUser);
-                  if (context.mounted) {
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Salaire mis à jour avec succès'),
-                        backgroundColor: AppTheme.primaryColor,
+          const SizedBox(width: 16),
+          // Budget Info
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Category Name and Status Icon on the same row
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        category.name,
+                        style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87,
+                        ),
                       ),
-                    );
-                  }
-                } catch (e) {
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Erreur: ${e.toString()}'),
-                        backgroundColor: Colors.red,
+                    ),
+                    // Status Icon aligned to the right
+                    Icon(
+                      statusIcon,
+                      color: statusColor,
+                      size: 24,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                // Amount Spent and "sur MAD X.XX" on the same line
+                Row(
+                  children: [
+                    Text(
+                      formatter.format(spent),
+                      style: GoogleFonts.poppins(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
                       ),
-                    );
-                  }
-                }
-              }
-            },
-            child: const Text('Enregistrer'),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'sur ${formatter.format(total)}',
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        color: AppTheme.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                // Progress Bar
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: (percentage / 100).clamp(0.0, 1.0),
+                    minHeight: 6,
+                    backgroundColor: Colors.grey[200],
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      percentage >= 100
+                          ? Colors.red
+                          : percentage >= 80
+                              ? Colors.orange
+                              : Colors.green,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                // Percentage
+                Text(
+                  '${percentage.toStringAsFixed(0)}%',
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -383,10 +655,10 @@ class _CategoryCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: _parseColor(categoryColor).withOpacity(0.1),
+        color: ColorUtils.parseColor(categoryColor).withOpacity(0.1),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: _parseColor(categoryColor).withOpacity(0.3),
+          color: ColorUtils.parseColor(categoryColor).withOpacity(0.3),
         ),
       ),
       child: Row(
@@ -394,7 +666,7 @@ class _CategoryCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: _parseColor(categoryColor).withOpacity(0.2),
+              color: ColorUtils.parseColor(categoryColor).withOpacity(0.2),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
@@ -409,28 +681,57 @@ class _CategoryCard extends StatelessWidget {
               style: GoogleFonts.poppins(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
-                color: _parseColor(categoryColor),
+                color: ColorUtils.parseColor(categoryColor),
               ),
             ),
           ),
           PopupMenuButton(
             icon: Icon(
               Icons.more_vert_rounded,
-              color: _parseColor(categoryColor),
+              color: ColorUtils.parseColor(categoryColor),
               size: 20,
             ),
             itemBuilder: (context) => [
               const PopupMenuItem(
+                value: 'color',
+                child: Row(
+                  children: [
+                    Icon(Icons.palette_rounded, size: 18),
+                    SizedBox(width: 8),
+                    Text('Personnaliser la couleur'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
                 value: 'edit',
-                child: Text('Modifier'),
+                child: Row(
+                  children: [
+                    Icon(Icons.edit_rounded, size: 18),
+                    SizedBox(width: 8),
+                    Text('Modifier'),
+                  ],
+                ),
               ),
               const PopupMenuItem(
                 value: 'delete',
-                child: Text('Supprimer', style: TextStyle(color: Colors.red)),
+                child: Row(
+                  children: [
+                    Icon(Icons.delete_rounded, size: 18, color: Colors.red),
+                    SizedBox(width: 8),
+                    Text('Supprimer', style: TextStyle(color: Colors.red)),
+                  ],
+                ),
               ),
             ],
             onSelected: (value) async {
-              if (value == 'delete') {
+              if (value == 'color') {
+                showModalBottomSheet(
+                  context: context,
+                  isScrollControlled: true,
+                  backgroundColor: Colors.transparent,
+                  builder: (context) => EditCategoryColorModal(category: category),
+                );
+              } else if (value == 'delete') {
                 try {
                   await provider.deleteCategory(category.id);
                   if (context.mounted) {
@@ -457,14 +758,6 @@ class _CategoryCard extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  Color _parseColor(String colorString) {
-    try {
-      return Color(int.parse(colorString.replaceFirst('#', '0xFF')));
-    } catch (e) {
-      return Colors.grey;
-    }
   }
 }
 
@@ -497,21 +790,14 @@ class _SettingsCard extends StatelessWidget {
             icon: Icons.notifications_rounded,
             title: 'Notifications',
             subtitle: 'Activées',
-            onTap: () {},
-          ),
-          const Divider(),
-          _SettingItem(
-            icon: Icons.backup_rounded,
-            title: 'Sauvegarde',
-            subtitle: 'Automatique',
-            onTap: () {},
-          ),
-          const Divider(),
-          _SettingItem(
-            icon: Icons.help_outline_rounded,
-            title: 'Aide et support',
-            subtitle: 'FAQ et contact',
-            onTap: () {},
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const NotificationsScreen(),
+                ),
+              );
+            },
           ),
           const Divider(),
           _SettingItem(
@@ -525,14 +811,63 @@ class _SettingsCard extends StatelessWidget {
             icon: Icons.logout_rounded,
             title: 'Déconnexion',
             subtitle: 'Se déconnecter de votre compte',
-            onTap: () {
-              // TODO: Implémenter la déconnexion après OAuth2
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Déconnexion à implémenter avec OAuth2'),
-                  backgroundColor: Colors.orange,
+            onTap: () async {
+              // Afficher une boîte de dialogue de confirmation
+              final confirmed = await showDialog<bool>(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: Text(
+                    'Déconnexion',
+                    style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
+                  ),
+                  content: Text(
+                    'Êtes-vous sûr de vouloir vous déconnecter ?',
+                    style: GoogleFonts.poppins(),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      child: const Text('Annuler'),
+                    ),
+                    ElevatedButton(
+                      onPressed: () => Navigator.pop(context, true),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                      ),
+                      child: const Text('Déconnexion'),
+                    ),
+                  ],
                 ),
               );
+
+              if (confirmed == true && context.mounted) {
+                try {
+                  final provider = Provider.of<BudgetProvider>(context, listen: false);
+                  
+                  // Nettoyer les données du provider
+                  provider.clearAllData();
+                  
+                  // Déconnexion Google et suppression de la session
+                  await AuthService.logout();
+                  
+                  // Naviguer vers l'écran de connexion
+                  if (context.mounted) {
+                    Navigator.of(context).pushNamedAndRemoveUntil(
+                      '/login',
+                      (route) => false,
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Erreur lors de la déconnexion: ${e.toString()}'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
+              }
             },
             isDestructive: true,
           ),

@@ -1,10 +1,12 @@
-target/
+build/
 .idea/
 *.iml
 .git/
-.mvn/
+.gradle/
 .classpath
 .project
 .settings/
 *.log
+.gradle/
+local.properties
 

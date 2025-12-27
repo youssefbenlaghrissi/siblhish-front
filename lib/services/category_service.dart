@@ -9,9 +9,9 @@ class CategoryService {
     return data.map((json) => Category.fromJson(json as Map<String, dynamic>)).toList();
   }
 
-  // Obtenir les catégories par défaut
-  static Future<List<Category>> getDefaultCategories() async {
-    final response = await ApiService.get('/categories/default');
+  // Obtenir toutes les catégories (pour paramétrage)
+  static Future<List<Category>> getAllCategories() async {
+    final response = await ApiService.get('/categories');
     final data = response['data'] as List<dynamic>;
     return data.map((json) => Category.fromJson(json as Map<String, dynamic>)).toList();
   }

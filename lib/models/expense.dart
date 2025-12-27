@@ -10,6 +10,10 @@ class Expense {
   final String? location;
   final bool isRecurring;
   final String? recurrenceFrequency; // DAILY, WEEKLY, MONTHLY, YEARLY
+  final DateTime? recurrenceEndDate; // Date limite pour "jusqu'à une certaine date"
+  final List<int>? recurrenceDaysOfWeek; // Pour hebdomadaire: [1=Monday, 2=Tuesday, ...]
+  final int? recurrenceDayOfMonth; // Pour mensuel: jour du mois (1-31)
+  final int? recurrenceDayOfYear; // Pour annuel: jour de l'année (1-365)
   final String userId;
   final String? categoryId; // Peut être null si category est fourni
   final Category? category; // CategoryDto imbriqué depuis le backend
@@ -23,6 +27,10 @@ class Expense {
     this.location,
     this.isRecurring = false,
     this.recurrenceFrequency,
+    this.recurrenceEndDate,
+    this.recurrenceDaysOfWeek,
+    this.recurrenceDayOfMonth,
+    this.recurrenceDayOfYear,
     required this.userId,
     this.categoryId,
     this.category,
@@ -34,14 +42,17 @@ class Expense {
   Map<String, dynamic> toJson() {
     final effectiveCatId = effectiveCategoryId;
     return {
-      'id': id,
       'amount': amount,
-      'method': paymentMethod, // Backend attend 'method' dans ExpenseRequestDto
-      'date': date.toIso8601String(),
+      'method': paymentMethod,
+      'date': date.toIso8601String().split('.')[0], // Format: 2024-12-17T10:30:00
       'description': description,
       'location': location,
       'isRecurring': isRecurring,
       'recurrenceFrequency': recurrenceFrequency,
+      'recurrenceEndDate': recurrenceEndDate?.toIso8601String().split('.')[0],
+      'recurrenceDaysOfWeek': recurrenceDaysOfWeek,
+      'recurrenceDayOfMonth': recurrenceDayOfMonth,
+      'recurrenceDayOfYear': recurrenceDayOfYear,
       'userId': int.tryParse(userId) ?? userId,
       'categoryId': effectiveCatId.isNotEmpty 
           ? (int.tryParse(effectiveCatId) ?? effectiveCatId)
@@ -70,6 +81,14 @@ class Expense {
       location: json['location'],
       isRecurring: json['isRecurring'] ?? false,
       recurrenceFrequency: json['recurrenceFrequency'],
+      recurrenceEndDate: json['recurrenceEndDate'] != null 
+          ? DateTime.parse(json['recurrenceEndDate'])
+          : null,
+      recurrenceDaysOfWeek: json['recurrenceDaysOfWeek'] != null
+          ? List<int>.from(json['recurrenceDaysOfWeek'])
+          : null,
+      recurrenceDayOfMonth: json['recurrenceDayOfMonth'],
+      recurrenceDayOfYear: json['recurrenceDayOfYear'],
       userId: json['userId'].toString(),
       categoryId: catId,
       category: categoryObj,

@@ -1,23 +1,234 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
-import 'package:uuid/uuid.dart';
+import 'package:shimmer/shimmer.dart';
 import '../providers/budget_provider.dart';
 import '../models/goal.dart';
+import '../models/category.dart' as models;
 import '../theme/app_theme.dart';
 import '../widgets/add_goal_modal.dart';
+import '../widgets/edit_goal_modal.dart';
+import '../widgets/skeleton_loader.dart';
+import '../widgets/custom_snackbar.dart';
 
-class GoalsScreen extends StatelessWidget {
-  const GoalsScreen({super.key});
+class GoalsScreen extends StatefulWidget {
+  final bool isVisible;
+  
+  const GoalsScreen({super.key, this.isVisible = false});
+
+  @override
+  State<GoalsScreen> createState() => _GoalsScreenState();
+}
+
+class _GoalsScreenState extends State<GoalsScreen> {
+  bool _goalsLoaded = false;
+  bool _isLoadingGoals = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Charger les goals si l'écran est déjà visible au démarrage
+    if (widget.isVisible) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && widget.isVisible) {
+          _reloadGoals();
+        }
+      });
+    }
+  }
+
+  @override
+  void didUpdateWidget(GoalsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Charger les goals uniquement quand l'écran devient visible (lazy loading strict)
+    if (widget.isVisible && !oldWidget.isVisible) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && widget.isVisible) {
+          _reloadGoals();
+        }
+      });
+    }
+  }
+
+  Future<void> _loadGoalsIfNeeded() async {
+    if (_isLoadingGoals) return;
+    
+    final provider = context.read<BudgetProvider>();
+    if (!_goalsLoaded && provider.currentUser != null) {
+      _isLoadingGoals = true;
+      try {
+        await provider.loadGoals();
+        if (mounted) {
+          setState(() {
+            _goalsLoaded = true;
+            _isLoadingGoals = false;
+          });
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() => _isLoadingGoals = false);
+        }
+      }
+    }
+  }
+
+  Future<void> _reloadGoals() async {
+    if (_isLoadingGoals) return;
+    
+    final provider = context.read<BudgetProvider>();
+    if (provider.currentUser != null) {
+      // Réinitialiser _goalsLoaded pour afficher le skeleton pendant le rechargement
+      setState(() {
+        _isLoadingGoals = true;
+        _goalsLoaded = false; // Important : réinitialiser pour afficher le skeleton
+      });
+      
+      try {
+        // Recharger toujours les goals depuis le backend
+        await provider.loadGoals();
+        if (mounted) {
+          setState(() {
+            _goalsLoaded = true;
+            _isLoadingGoals = false;
+          });
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() {
+            _isLoadingGoals = false;
+            // Garder _goalsLoaded = false en cas d'erreur pour permettre un nouveau chargement
+          });
+        }
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    // Utiliser AutomaticKeepAliveClientMixin pour contrôler quand l'écran est actif
     return Scaffold(
       body: SafeArea(
         child: Consumer<BudgetProvider>(
           builder: (context, provider, child) {
+            final isLoading = _isLoadingGoals || !_goalsLoaded;
+            
+            // Charger les objectifs à la demande (lazy loading strict)
+            // Ne charger QUE si l'écran est visible ET que les données ne sont pas déjà chargées
+            if (widget.isVisible && !_goalsLoaded && !_isLoadingGoals && provider.currentUser != null && mounted) {
+              // Utiliser SchedulerBinding pour charger après le premier frame
+              SchedulerBinding.instance.addPostFrameCallback((_) {
+                if (mounted && widget.isVisible && !_goalsLoaded && !_isLoadingGoals) {
+                  _loadGoalsIfNeeded();
+                }
+              });
+            }
+            
+            // Si l'écran n'est pas visible, ne pas charger et afficher un loader
+            if (!widget.isVisible || isLoading) {
+              return CustomScrollView(
+                slivers: [
+                  const SliverToBoxAdapter(
+                    child: SizedBox(height: 16),
+                  ),
+                  // Tips Card Skeleton
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Shimmer.fromColors(
+                        baseColor: Colors.grey[300]!,
+                        highlightColor: Colors.grey[100]!,
+                        child: Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: Colors.grey[200],
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                width: 150,
+                                height: 18,
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              Container(
+                                width: double.infinity,
+                                height: 14,
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Container(
+                                width: 200,
+                                height: 14,
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  // Goals Header Skeleton
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 10, 20, 10),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Container(
+                            width: 120,
+                            height: 20,
+                            decoration: BoxDecoration(
+                              color: Colors.grey[300],
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
+                          Container(
+                            width: 80,
+                            height: 16,
+                            decoration: BoxDecoration(
+                              color: Colors.grey[300],
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  // Goals List Skeletons
+                  SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) {
+                        return Padding(
+                          padding: EdgeInsets.fromLTRB(
+                            20,
+                            0,
+                            20,
+                            index == 2 ? 20 : 12,
+                          ),
+                          child: const GoalCardSkeleton(),
+                        );
+                      },
+                      childCount: 3, // Afficher 3 skeletons
+                    ),
+                  ),
+                ],
+              );
+            }
+
             final goals = provider.goals;
 
             return CustomScrollView(
@@ -132,28 +343,6 @@ class GoalsScreen extends StatelessWidget {
           },
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          showModalBottomSheet(
-            context: context,
-            isScrollControlled: true,
-            backgroundColor: Colors.transparent,
-            builder: (context) => const AddGoalModal(),
-          );
-        },
-        backgroundColor: const Color(0xFFFF6B6B),
-        icon: const Icon(Icons.add_rounded, color: Colors.white),
-        label: Text(
-          'Nouvel objectif',
-          style: GoogleFonts.poppins(
-            color: Colors.white,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      )
-          .animate()
-          .scale(delay: 500.ms, duration: 400.ms)
-          .fadeIn(delay: 500.ms),
     );
   }
 }
@@ -243,6 +432,20 @@ class _GoalCard extends StatelessWidget {
     final progress = goal.progress;
     final remaining = goal.targetAmount - goal.currentAmount;
     final isAchieved = goal.isAchieved || progress >= 1.0;
+    
+    // Trouver la catégorie si elle existe
+    models.Category? category;
+    if (goal.categoryId != null) {
+      category = provider.categories.firstWhere(
+        (cat) => cat.id == goal.categoryId,
+        orElse: () => models.Category(
+          id: goal.categoryId!,
+          name: 'Catégorie inconnue',
+          icon: '📦',
+          color: '#9E9E9E',
+        ),
+      );
+    }
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -267,12 +470,49 @@ class _GoalCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      goal.name,
-                      style: GoogleFonts.poppins(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    Row(
+                      children: [
+                        if (category != null) ...[
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: _parseColor(category.color).withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: _parseColor(category.color).withOpacity(0.3),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  category.icon ?? '📦',
+                                  style: const TextStyle(fontSize: 14),
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  category.name,
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 11,
+                                    color: _parseColor(category.color),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                        ],
+                        Expanded(
+                          child: Text(
+                            goal.name,
+                            style: GoogleFonts.poppins(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                     if (goal.description != null) ...[
                       const SizedBox(height: 4),
@@ -344,8 +584,8 @@ class _GoalCard extends StatelessWidget {
               value: progress,
               minHeight: 12,
               backgroundColor: Colors.grey[200],
-              valueColor: AlwaysStoppedAnimation<Color>(
-                isAchieved ? AppTheme.primaryColor : AppTheme.secondaryColor,
+              valueColor: const AlwaysStoppedAnimation<Color>(
+                Colors.green,
               ),
             ),
           ),
@@ -410,34 +650,18 @@ class _GoalCard extends StatelessWidget {
                 icon: const Icon(Icons.edit_rounded, size: 20),
                 color: AppTheme.textSecondary,
                 onPressed: () {
-                  // Edit goal
+                  showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    backgroundColor: Colors.transparent,
+                    builder: (context) => EditGoalModal(goal: goal),
+                  );
                 },
               ),
               IconButton(
                 icon: const Icon(Icons.delete_rounded, size: 20),
                 color: AppTheme.expenseColor,
-                onPressed: () async {
-                  try {
-                    await provider.deleteGoal(goal.id);
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Objectif supprimé avec succès'),
-                          backgroundColor: AppTheme.primaryColor,
-                        ),
-                      );
-                    }
-                  } catch (e) {
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Erreur: ${e.toString()}'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                    }
-                  }
-                },
+                onPressed: () => _showDeleteConfirmationDialog(context, goal, provider),
               ),
             ],
           ),
@@ -446,61 +670,206 @@ class _GoalCard extends StatelessWidget {
     );
   }
 
+  Color _parseColor(String? colorString) {
+    if (colorString == null || colorString.isEmpty) return Colors.grey;
+    try {
+      return Color(int.parse(colorString.replaceFirst('#', '0xFF')));
+    } catch (e) {
+      return Colors.grey;
+    }
+  }
+
   void _showAddAmountDialog(BuildContext context, Goal goal, BudgetProvider provider) {
     final amountController = TextEditingController();
+    bool isAdding = false;
     
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          'Ajouter à l\'objectif',
-          style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
-        ),
-        content: TextField(
-          controller: amountController,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(
-            labelText: 'Montant',
-            prefixText: 'MAD ',
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text(
+            'Ajouter à l\'objectif',
+            style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Annuler'),
+          content: TextField(
+            controller: amountController,
+            keyboardType: TextInputType.number,
+            enabled: !isAdding,
+            decoration: const InputDecoration(
+              labelText: 'Montant',
+              prefixText: 'MAD ',
+            ),
           ),
-          ElevatedButton(
-            onPressed: () async {
-              final amount = double.tryParse(amountController.text);
-              if (amount != null && amount > 0) {
-                try {
-                  // Utiliser addAmountToGoal au lieu de updateGoal pour être cohérent avec l'API
-                  await provider.addAmountToGoal(goal.id, amount);
-                  if (context.mounted) {
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Montant ajouté avec succès'),
-                        backgroundColor: AppTheme.primaryColor,
-                      ),
-                    );
-                  }
-                } catch (e) {
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Erreur: ${e.toString()}'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
+          actions: [
+            TextButton(
+              onPressed: isAdding ? null : () => Navigator.pop(context),
+              child: const Text('Annuler'),
+            ),
+            ElevatedButton(
+              onPressed: isAdding ? null : () async {
+                final amount = double.tryParse(amountController.text);
+                if (amount != null && amount > 0) {
+                  setDialogState(() {
+                    isAdding = true;
+                  });
+                  try {
+                    // Utiliser addAmountToGoal au lieu de updateGoal pour être cohérent avec l'API
+                    await provider.addAmountToGoal(goal.id, amount);
+                    if (context.mounted) {
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        CustomSnackBar.success(
+                          title: 'Montant ajouté avec succès',
+                          description: 'Le montant a été ajouté à votre objectif',
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      setDialogState(() {
+                        isAdding = false;
+                      });
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Erreur: ${e.toString()}'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
                   }
                 }
-              }
-            },
-            child: const Text('Ajouter'),
-          ),
-        ],
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryColor,
+                foregroundColor: Colors.white,
+                disabledBackgroundColor: Colors.grey[300],
+              ),
+              child: isAdding
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : const Text('Ajouter'),
+            ),
+          ],
+        ),
       ),
+    );
+  }
+
+  void _showDeleteConfirmationDialog(BuildContext context, Goal goal, BudgetProvider provider) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => _DeleteConfirmationDialog(
+        goal: goal,
+        provider: provider,
+      ),
+    );
+  }
+}
+
+class _DeleteConfirmationDialog extends StatefulWidget {
+  final Goal goal;
+  final BudgetProvider provider;
+
+  const _DeleteConfirmationDialog({
+    required this.goal,
+    required this.provider,
+  });
+
+  @override
+  State<_DeleteConfirmationDialog> createState() => _DeleteConfirmationDialogState();
+}
+
+class _DeleteConfirmationDialogState extends State<_DeleteConfirmationDialog> {
+  bool _isDeleting = false;
+
+  Future<void> _deleteGoal() async {
+    setState(() {
+      _isDeleting = true;
+    });
+
+    try {
+      await widget.provider.deleteGoal(widget.goal.id);
+      if (mounted) {
+        Navigator.pop(context); // Fermer le dialog de confirmation
+        ScaffoldMessenger.of(context).showSnackBar(
+          CustomSnackBar.success(
+            title: 'Objectif supprimé avec succès',
+            description: 'L\'objectif a été supprimé',
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isDeleting = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+      ),
+      title: Text(
+        'Supprimer l\'objectif',
+        style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
+      ),
+      content: _isDeleting
+          ? Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(),
+                const SizedBox(height: 16),
+                Text(
+                  'Suppression en cours...',
+                  style: GoogleFonts.poppins(),
+                ),
+              ],
+            )
+          : Text(
+              'Êtes-vous sûr de vouloir supprimer l\'objectif "${widget.goal.name}" ?',
+              style: GoogleFonts.poppins(),
+            ),
+      actions: _isDeleting
+          ? []
+          : [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(
+                  'Annuler',
+                  style: GoogleFonts.poppins(color: Colors.grey),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: _deleteGoal,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: Text(
+                  'Supprimer',
+                  style: GoogleFonts.poppins(color: Colors.white),
+                ),
+              ),
+            ],
     );
   }
 }

@@ -7,6 +7,8 @@ import '../models/category.dart';
 import '../models/expense.dart';
 import '../models/income.dart';
 import '../theme/app_theme.dart';
+import 'recurrence_options_widget.dart';
+import 'custom_snackbar.dart';
 
 class AddTransactionModal extends StatefulWidget {
   final bool? isIncome;
@@ -29,8 +31,25 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
   DateTime _selectedDate = DateTime.now();
   bool _isRecurring = false;
   String? _recurrenceFrequency;
+  DateTime? _recurrenceEndDate;
+  List<int>? _recurrenceDaysOfWeek;
+  int? _recurrenceDayOfMonth;
+  int? _recurrenceDayOfYear;
 
   final _uuid = const Uuid();
+
+  @override
+  void initState() {
+    super.initState();
+    // Charger les catégories à la demande (utilise le cache si déjà chargé)
+    if (widget.isIncome != true) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          context.read<BudgetProvider>().loadCategoriesIfNeeded();
+        }
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -50,7 +69,32 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
     );
     if (picked != null) {
       setState(() {
-        _selectedDate = picked;
+        // Préserver l'heure existante lors du changement de date
+        _selectedDate = DateTime(
+          picked.year,
+          picked.month,
+          picked.day,
+          _selectedDate.hour,
+          _selectedDate.minute,
+        );
+      });
+    }
+  }
+
+  Future<void> _selectTime() async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(_selectedDate),
+    );
+    if (picked != null) {
+      setState(() {
+        _selectedDate = DateTime(
+          _selectedDate.year,
+          _selectedDate.month,
+          _selectedDate.day,
+          picked.hour,
+          picked.minute,
+        );
       });
     }
   }
@@ -80,6 +124,10 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
           source: _sourceController.text.isEmpty ? null : _sourceController.text,
           isRecurring: _isRecurring,
           recurrenceFrequency: _recurrenceFrequency,
+          recurrenceEndDate: _recurrenceEndDate,
+          recurrenceDaysOfWeek: _recurrenceDaysOfWeek,
+          recurrenceDayOfMonth: _recurrenceDayOfMonth,
+          recurrenceDayOfYear: _recurrenceDayOfYear,
           userId: provider.currentUser!.id,
         );
         await provider.addIncome(income);
@@ -106,6 +154,10 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
               : _locationController.text,
           isRecurring: _isRecurring,
           recurrenceFrequency: _recurrenceFrequency,
+          recurrenceEndDate: _recurrenceEndDate,
+          recurrenceDaysOfWeek: _recurrenceDaysOfWeek,
+          recurrenceDayOfMonth: _recurrenceDayOfMonth,
+          recurrenceDayOfYear: _recurrenceDayOfYear,
           categoryId: _selectedCategoryId!,
           userId: provider.currentUser!.id,
         );
@@ -115,13 +167,13 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              widget.isIncome == true
-                  ? 'Revenu ajouté avec succès'
-                  : 'Dépense ajoutée avec succès',
-            ),
-            backgroundColor: AppTheme.primaryColor,
+          CustomSnackBar.success(
+            title: widget.isIncome == true
+                ? 'Revenu ajouté avec succès'
+                : 'Dépense ajoutée avec succès',
+            description: widget.isIncome == true
+                ? 'Votre revenu a été enregistré'
+                : 'Votre dépense a été enregistrée',
           ),
         );
       }
@@ -222,7 +274,10 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
                     // Category (only for expenses)
                     if (!isIncome) ...[
                       DropdownButtonFormField<String>(
-                        value: _selectedCategoryId,
+                        value: _selectedCategoryId != null &&
+                                provider.categories.any((cat) => cat.id == _selectedCategoryId)
+                            ? _selectedCategoryId
+                            : null,
                         decoration: const InputDecoration(
                           labelText: 'Catégorie',
                           prefixIcon: Icon(Icons.category_rounded),
@@ -306,6 +361,21 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
                     ),
                     const SizedBox(height: 20),
 
+                    // Time
+                    InkWell(
+                      onTap: _selectTime,
+                      child: InputDecorator(
+                        decoration: const InputDecoration(
+                          labelText: 'Heure',
+                          prefixIcon: Icon(Icons.access_time_rounded),
+                        ),
+                        child: Text(
+                          '${_selectedDate.hour.toString().padLeft(2, '0')}:${_selectedDate.minute.toString().padLeft(2, '0')}',
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
                     // Description
                     TextFormField(
                       controller: _descriptionController,
@@ -336,15 +406,24 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
                       onChanged: (value) {
                         setState(() {
                           _isRecurring = value ?? false;
+                          if (!_isRecurring) {
+                            _recurrenceFrequency = null;
+                            _recurrenceEndDate = null;
+                            _recurrenceDaysOfWeek = null;
+                            _recurrenceDayOfMonth = null;
+                            _recurrenceDayOfYear = null;
+                          }
                         });
                       },
                     ),
 
                     if (_isRecurring) ...[
+                      const SizedBox(height: 10),
                       DropdownButtonFormField<String>(
                         value: _recurrenceFrequency,
                         decoration: const InputDecoration(
                           labelText: 'Fréquence',
+                          prefixIcon: Icon(Icons.repeat_rounded),
                         ),
                         items: const [
                           DropdownMenuItem(value: 'DAILY', child: Text('Quotidien')),
@@ -355,29 +434,76 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
                         onChanged: (value) {
                           setState(() {
                             _recurrenceFrequency = value;
+                            // Réinitialiser les options spécifiques lors du changement de fréquence
+                            _recurrenceEndDate = null;
+                            _recurrenceDaysOfWeek = null;
+                            _recurrenceDayOfMonth = null;
+                            _recurrenceDayOfYear = null;
                           });
                         },
+                        validator: (value) {
+                          if (_isRecurring && value == null) {
+                            return 'Veuillez sélectionner une fréquence';
+                          }
+                          return null;
+                        },
                       ),
+                      if (_recurrenceFrequency != null) ...[
+                        const SizedBox(height: 20),
+                        RecurrenceOptionsWidget(
+                          frequency: _recurrenceFrequency,
+                          onEndDateChanged: (date) {
+                            setState(() {
+                              _recurrenceEndDate = date;
+                            });
+                          },
+                          onDaysOfWeekChanged: (days) {
+                            setState(() {
+                              _recurrenceDaysOfWeek = days;
+                            });
+                          },
+                          onDayOfMonthChanged: (day) {
+                            setState(() {
+                              _recurrenceDayOfMonth = day;
+                            });
+                          },
+                          onDayOfYearChanged: (day) {
+                            setState(() {
+                              _recurrenceDayOfYear = day;
+                            });
+                          },
+                        ),
+                      ],
                     ],
 
                     const SizedBox(height: 30),
 
                     // Submit Button
                     ElevatedButton(
-                      onPressed: _submit,
+                      onPressed: _isSubmitting ? null : _submit,
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         backgroundColor: isIncome
                             ? AppTheme.incomeColor
                             : AppTheme.expenseColor,
+                        disabledBackgroundColor: Colors.grey[300],
                       ),
-                      child: Text(
-                        'Ajouter',
-                        style: GoogleFonts.poppins(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+                      child: _isSubmitting
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            )
+                          : Text(
+                              'Ajouter',
+                              style: GoogleFonts.poppins(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                     ),
                   ],
                 ),

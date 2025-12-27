@@ -26,7 +26,7 @@ Le frontend Flutter est maintenant aligné avec le backend Spring Boot. Voici le
 - `/api/v1/categories/{userId}` - Catégories utilisateur
 - `/api/v1/goals/{userId}` - Objectifs utilisateur
 - `/api/v1/home/balance/{userId}` - Solde
-- `/api/v1/home/transactions/{userId}` - Transactions récentes
+- `/api/v1/home/transactions/{userId}?limit=100` - Transactions récentes (filtres appliqués côté frontend)
 
 ---
 

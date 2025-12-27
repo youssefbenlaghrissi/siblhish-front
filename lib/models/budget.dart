@@ -2,43 +2,52 @@
 class Budget {
   final String id;
   final double amount;
-  final String period; // DAILY, WEEKLY, MONTHLY, YEARLY
   final DateTime? startDate;
   final DateTime? endDate;
-  final bool isActive;
   final String? categoryId; // null for global budget
   final String userId;
+  final bool isRecurring; // Budget récurrent (créé automatiquement chaque mois, calculé par le backend)
+  final double spent; // Montant dépensé (calculé par le backend)
+  final double percentageUsed; // Pourcentage utilisé (calculé par le backend)
 
   Budget({
     required this.id,
     required this.amount,
-    required this.period,
     this.startDate,
     this.endDate,
-    this.isActive = true,
     this.categoryId,
     required this.userId,
+    this.isRecurring = false,
+    this.spent = 0.0,
+    this.percentageUsed = 0.0,
   });
 
   Map<String, dynamic> toJson() => {
         'id': id,
         'amount': amount,
-        'period': period,
         'startDate': startDate?.toIso8601String(),
         'endDate': endDate?.toIso8601String(),
-        'isActive': isActive,
         'categoryId': categoryId,
         'userId': userId,
+        'isRecurring': isRecurring,
+        'spent': spent,
+        'percentageUsed': percentageUsed,
       };
 
-  factory Budget.fromJson(Map<String, dynamic> json) => Budget(
-        id: json['id'].toString(),
-        amount: json['amount'].toDouble(),
-        period: json['period'],
-        startDate: json['startDate'] != null ? DateTime.parse(json['startDate']) : null,
-        endDate: json['endDate'] != null ? DateTime.parse(json['endDate']) : null,
-        isActive: json['isActive'] ?? true,
-        categoryId: json['categoryId']?.toString(),
-        userId: json['userId'].toString(),
-      );
+  factory Budget.fromJson(Map<String, dynamic> json) {
+    // Extraire categoryId depuis category.id si categoryId n'existe pas directement
+    final categoryId = json['categoryId']?.toString() ?? json['category']?['id']?.toString();
+    
+    return Budget(
+      id: json['id'].toString(),
+      amount: json['amount'].toDouble(),
+      startDate: json['startDate'] != null ? DateTime.parse(json['startDate']) : null,
+      endDate: json['endDate'] != null ? DateTime.parse(json['endDate']) : null,
+      categoryId: categoryId,
+      userId: json['userId'].toString(),
+      isRecurring: json['isRecurring'] ?? false,
+      spent: (json['spent'] as num?)?.toDouble() ?? 0.0,
+      percentageUsed: (json['percentageUsed'] as num?)?.toDouble() ?? 0.0,
+    );
+  }
 }

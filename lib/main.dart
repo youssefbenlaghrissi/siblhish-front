@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'screens/splash_screen.dart';
+import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/statistics_screen.dart';
 import 'screens/goals_screen.dart';
 import 'screens/profile_screen.dart';
+import 'screens/transactions_screen.dart';
 import 'providers/budget_provider.dart';
 import 'theme/app_theme.dart';
 
@@ -42,7 +45,8 @@ class SiblhishApp extends StatelessWidget {
         initialRoute: '/',
         routes: {
           '/': (context) => const SplashScreen(),
-          '/main': (context) => const MainScreen(),
+          '/login': (context) => const LoginScreen(),
+          '/main': (context) => MainScreen(key: MainScreen.navigatorKey),
         },
       ),
     );
@@ -52,83 +56,124 @@ class SiblhishApp extends StatelessWidget {
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
 
+  static final GlobalKey<_MainScreenState> navigatorKey = GlobalKey<_MainScreenState>();
+
   @override
   State<MainScreen> createState() => _MainScreenState();
 }
 
-class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateMixin {
+class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver, SingleTickerProviderStateMixin {
   int _currentIndex = 0;
   late AnimationController _animationController;
-  bool _isInitializing = true;
+  
+  // Obtenir le nom de l'écran à partir de l'index
+  String _getScreenName(int index) {
+    switch (index) {
+      case 0:
+        return 'Accueil';
+      case 1:
+        return 'Transactions';
+      case 2:
+        return 'Statistiques';
+      case 3:
+        return 'Objectifs';
+      case 4:
+        return 'Profil';
+      default:
+        return 'Inconnu';
+    }
+  }
+  
+  // Méthode publique pour changer d'onglet depuis d'autres écrans
+  void changeTab(int index) {
+    if (index >= 0 && index < 5) {
+      // Effacer les erreurs précédentes lors du changement d'onglet
+      final provider = Provider.of<BudgetProvider>(context, listen: false);
+      provider.clearError();
+      
+      debugPrint('📱 Ouverture de screen: ${_getScreenName(index)}');
+      
+      setState(() {
+        _currentIndex = index;
+      });
+      _animationController.reset();
+      _animationController.forward();
+    }
+  }
 
-  final List<Widget> _screens = [
-    const HomeScreen(),
-    const StatisticsScreen(),
-    const GoalsScreen(),
-    const ProfileScreen(),
-  ];
+  // Créer les écrans de manière lazy pour éviter les appels API au démarrage
+  Widget _buildScreen(int index) {
+    switch (index) {
+      case 0:
+        return HomeScreen(isVisible: _currentIndex == 0);
+      case 1:
+        return TransactionsScreen(isVisible: _currentIndex == 1);
+      case 2:
+        return StatisticsScreen(isVisible: _currentIndex == 2);
+      case 3:
+        return GoalsScreen(isVisible: _currentIndex == 3);
+      case 4:
+        return ProfileScreen(isVisible: _currentIndex == 4);
+      default:
+        return HomeScreen(isVisible: _currentIndex == 0);
+    }
+  }
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 300),
     );
     _animationController.forward();
-    _initializeData();
-  }
-
-  Future<void> _initializeData() async {
-    final provider = Provider.of<BudgetProvider>(context, listen: false);
-    try {
-      debugPrint('🚀 Initializing app with user ID: 1');
-      // TODO: Après implémentation OAuth2, utiliser l'ID utilisateur depuis le token JWT
-      await provider.initialize('1');
-      debugPrint('✅ Initialization complete');
-    } catch (e) {
-      debugPrint('❌ Erreur lors de l\'initialisation: $e');
-      // Afficher l'erreur à l'utilisateur
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erreur de connexion: ${e.toString()}'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 5),
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isInitializing = false;
-        });
-      }
-    }
+    debugPrint('📱 Ouverture de screen: ${_getScreenName(_currentIndex)}');
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _animationController.dispose();
     super.dispose();
   }
 
   @override
-  Widget build(BuildContext context) {
-    if (_isInitializing) {
-      return const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    // Ne pas nettoyer les données quand l'app passe en arrière-plan
+    // Seulement nettoyer si l'app est complètement détachée (fermée)
+    if (state == AppLifecycleState.detached) {
+      final provider = Provider.of<BudgetProvider>(context, listen: false);
+      // Ne pas nettoyer la session, seulement les données temporaires si nécessaire
+      // provider.clearAllData(); // Commenté pour préserver la session
+      if (kDebugMode) {
+        debugPrint('📱 Application détachée (fermée)');
+      }
     }
+  }
 
-    return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _screens,
-      ),
-      bottomNavigationBar: Container(
+  @override
+  Widget build(BuildContext context) {
+    // Vérifier que l'utilisateur est authentifié avant d'afficher l'app
+    return Consumer<BudgetProvider>(
+      builder: (context, provider, child) {
+        // Si l'utilisateur n'est pas chargé, rediriger vers le login
+        if (!provider.isInitialized || provider.currentUser == null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            Navigator.of(context).pushReplacementNamed('/login');
+          });
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+        
+        return Scaffold(
+          body: IndexedStack(
+            index: _currentIndex,
+            children: List.generate(5, (index) => _buildScreen(index)),
+          ),
+          bottomNavigationBar: Container(
         decoration: BoxDecoration(
           boxShadow: [
             BoxShadow(
@@ -141,6 +186,11 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
         child: BottomNavigationBar(
           currentIndex: _currentIndex,
           onTap: (index) {
+            // Effacer les erreurs précédentes lors du changement d'onglet
+            provider.clearError();
+            
+            debugPrint('📱 Ouverture de screen: ${_getScreenName(index)}');
+            
             setState(() {
               _currentIndex = index;
             });
@@ -164,6 +214,10 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
               label: 'Accueil',
             ),
             BottomNavigationBarItem(
+              icon: Icon(Icons.receipt_long_rounded),
+              label: 'Transactions',
+            ),
+            BottomNavigationBarItem(
               icon: Icon(Icons.bar_chart_rounded),
               label: 'Statistiques',
             ),
@@ -177,7 +231,9 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
             ),
           ],
         ),
-      ),
+        ),
+      );
+      },
     );
   }
 }

@@ -4,7 +4,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:uuid/uuid.dart';
 import '../providers/budget_provider.dart';
 import '../models/goal.dart';
+import '../models/category.dart' as models;
 import '../theme/app_theme.dart';
+import 'custom_snackbar.dart';
 
 class AddGoalModal extends StatefulWidget {
   const AddGoalModal({super.key});
@@ -19,6 +21,7 @@ class _AddGoalModalState extends State<AddGoalModal> {
   final _descriptionController = TextEditingController();
   final _targetAmountController = TextEditingController();
   DateTime? _targetDate;
+  models.Category? _selectedCategory;
 
   final _uuid = const Uuid();
 
@@ -66,15 +69,16 @@ class _AddGoalModalState extends State<AddGoalModal> {
         targetDate: _targetDate,
         isAchieved: false,
         userId: provider.currentUser!.id,
+        categoryId: _selectedCategory?.id,
       );
       await provider.addGoal(goal);
 
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Objectif créé avec succès'),
-            backgroundColor: AppTheme.primaryColor,
+          CustomSnackBar.success(
+            title: 'Objectif créé avec succès',
+            description: 'Votre objectif a été enregistré',
           ),
         );
       }
@@ -171,6 +175,51 @@ class _AddGoalModalState extends State<AddGoalModal> {
                         prefixIcon: Icon(Icons.description_rounded),
                       ),
                       maxLines: 2,
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Category Selection (optional)
+                    Consumer<BudgetProvider>(
+                      builder: (context, provider, child) {
+                        // Charger les catégories si nécessaire
+                        if (!provider.categoriesLoaded) {
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            provider.loadCategoriesIfNeeded();
+                          });
+                        }
+                        
+                        final categories = provider.categories;
+                        return DropdownButtonFormField<models.Category?>(
+                          decoration: const InputDecoration(
+                            labelText: 'Catégorie (optionnel)',
+                            prefixIcon: Icon(Icons.category_rounded),
+                          ),
+                          value: _selectedCategory,
+                          items: [
+                            const DropdownMenuItem<models.Category?>(
+                              value: null,
+                              child: Text('Aucune catégorie'),
+                            ),
+                            ...categories.map((category) {
+                              return DropdownMenuItem<models.Category?>(
+                                value: category,
+                                child: Row(
+                                  children: [
+                                    Text(category.icon ?? '📦'),
+                                    const SizedBox(width: 8),
+                                    Text(category.name),
+                                  ],
+                                ),
+                              );
+                            }),
+                          ],
+                          onChanged: _isSubmitting ? null : (value) {
+                            setState(() {
+                              _selectedCategory = value;
+                            });
+                          },
+                        );
+                      },
                     ),
                     const SizedBox(height: 20),
 

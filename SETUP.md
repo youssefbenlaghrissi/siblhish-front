@@ -102,7 +102,6 @@ L'application crée automatiquement 6 catégories par défaut :
 Un utilisateur par défaut est créé automatiquement si aucun utilisateur n'existe :
 - Nom : "Utilisateur Test"
 - Email : "user@example.com"
-- Type : "EMPLOYEE"
 - Salaire mensuel : 8000 MAD
 
 ## 🔄 Mise à jour des modèles

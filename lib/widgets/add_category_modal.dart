@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 import '../providers/budget_provider.dart';
 import '../models/category.dart';
 import '../theme/app_theme.dart';
+import 'custom_snackbar.dart';
 
 class AddCategoryModal extends StatefulWidget {
   const AddCategoryModal({super.key});
@@ -59,9 +60,9 @@ class _AddCategoryModalState extends State<AddCategoryModal> {
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Catégorie créée avec succès'),
-            backgroundColor: AppTheme.primaryColor,
+          CustomSnackBar.success(
+            title: 'Catégorie créée avec succès',
+            description: 'Votre catégorie a été enregistrée',
           ),
         );
       }

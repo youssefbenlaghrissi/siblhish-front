@@ -1,9 +1,10 @@
+import 'package:flutter/foundation.dart';
 import '../models/expense.dart';
 import '../models/category.dart';
 import 'api_service.dart';
 
 class ExpenseService {
-  // Obtenir les dépenses avec pagination
+  // Obtenir les dépenses par utilisateur
   static Future<List<Expense>> getExpenses(
     String userId, {
     int page = 0,
@@ -12,15 +13,9 @@ class ExpenseService {
     String? endDate,
     String? categoryId,
   }) async {
-    String endpoint = '/expenses/$userId?page=$page&size=$size';
-    if (startDate != null) endpoint += '&startDate=$startDate';
-    if (endDate != null) endpoint += '&endDate=$endDate';
-    if (categoryId != null) endpoint += '&categoryId=$categoryId';
-
-    final response = await ApiService.get(endpoint);
-    final data = response['data'] as Map<String, dynamic>;
-    final content = data['content'] as List<dynamic>;
-    return content.map((json) => Expense.fromJson(json as Map<String, dynamic>)).toList();
+    final response = await ApiService.get('/expenses/user/$userId');
+    final data = response['data'] as List<dynamic>;
+    return data.map((json) => Expense.fromJson(json as Map<String, dynamic>)).toList();
   }
 
   // Obtenir une dépense par ID
@@ -42,6 +37,9 @@ class ExpenseService {
       String expenseId, Map<String, dynamic> expenseData) async {
     final response = await ApiService.put('/expenses/$expenseId', expenseData);
     final data = response['data'] as Map<String, dynamic>;
+    debugPrint('📥 Réponse backend après mise à jour dépense:');
+    debugPrint('   Date reçue: ${data['date']}');
+    debugPrint('   Données complètes: $data');
     return Expense.fromJson(data);
   }
 
