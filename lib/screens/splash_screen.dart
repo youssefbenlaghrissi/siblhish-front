@@ -121,11 +121,8 @@ class _SplashScreenState extends State<SplashScreen>
       if (userId == null || userId.isEmpty) {
         throw Exception('Aucun utilisateur connecté');
       }
-      debugPrint('🔄 Chargement des données pour l\'utilisateur: $userId');
       await provider.initialize(userId);
-      debugPrint('✅ Données chargées avec succès');
     } catch (e) {
-      debugPrint('❌ Erreur chargement: $e');
       // Attendre minimum 800ms pour voir l'animation complète
       await _waitMinimumTime(stopwatch, 800);
       if (!mounted) return;

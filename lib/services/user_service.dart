@@ -13,7 +13,6 @@ class UserService {
       final data = response['data'] as Map<String, dynamic>;
       return User.fromJson(data);
     } catch (e) {
-      debugPrint('❌ UserService.getProfile error: $e');
       rethrow;
     }
   }

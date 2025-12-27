@@ -312,9 +312,7 @@ class _EditBudgetModalState extends State<EditBudgetModal> {
                             selectedCategory = categories.firstWhere(
                               (cat) => cat.id == widget.budget.categoryId,
                             );
-                            debugPrint('✅ Catégorie trouvée: ${selectedCategory.name}');
                           } catch (e) {
-                            debugPrint('⚠️ Catégorie non trouvée dans la liste, categoryId: ${widget.budget.categoryId}');
                             // Si la catégorie n'est pas trouvée, créer une catégorie temporaire
                             selectedCategory = models.Category(
                               id: widget.budget.categoryId!,
@@ -324,7 +322,6 @@ class _EditBudgetModalState extends State<EditBudgetModal> {
                             );
                           }
                         } else {
-                          debugPrint('ℹ️ Budget global (sans catégorie)');
                         }
                         
                         // Afficher le champ même si les catégories ne sont pas encore chargées

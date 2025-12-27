@@ -103,7 +103,6 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
         maxAmount: _filterMaxAmount,
       );
     } catch (e) {
-      debugPrint('❌ Erreur lors du chargement des transactions filtrées: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

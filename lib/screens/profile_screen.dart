@@ -52,7 +52,10 @@ class ProfileScreen extends StatelessWidget {
 
                 // Budgets Section
                 SliverToBoxAdapter(
-                  child: _BudgetsSection(provider: provider),
+                  child: _BudgetsSection(
+                    provider: provider,
+                    isVisible: isVisible,
+                  ),
                 ),
 
                 // Categories Header
@@ -227,8 +230,12 @@ class _UserInfoCard extends StatelessWidget {
 
 class _BudgetsSection extends StatefulWidget {
   final BudgetProvider provider;
+  final bool isVisible;
 
-  const _BudgetsSection({required this.provider});
+  const _BudgetsSection({
+    required this.provider,
+    required this.isVisible,
+  });
 
   @override
   State<_BudgetsSection> createState() => _BudgetsSectionState();
@@ -237,12 +244,26 @@ class _BudgetsSection extends StatefulWidget {
 class _BudgetsSectionState extends State<_BudgetsSection> {
   DateTime _selectedMonth = DateTime.now();
   String? _selectedMonthString;
+  bool _hasLoaded = false;
 
   @override
   void initState() {
     super.initState();
     _updateSelectedMonth();
-    _loadBudgets();
+    // Ne pas charger ici, attendre que l'écran soit visible
+  }
+
+  @override
+  void didUpdateWidget(_BudgetsSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Charger les budgets quand l'écran devient visible pour la première fois
+    if (widget.isVisible && !oldWidget.isVisible && !_hasLoaded) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && widget.isVisible && !_hasLoaded) {
+          _loadBudgets();
+        }
+      });
+    }
   }
 
   void _updateSelectedMonth() {
@@ -250,6 +271,9 @@ class _BudgetsSectionState extends State<_BudgetsSection> {
   }
 
   Future<void> _loadBudgets() async {
+    if (!_hasLoaded) {
+      _hasLoaded = true;
+    }
     await widget.provider.loadBudgetsIfNeeded(month: _selectedMonthString);
   }
 

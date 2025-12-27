@@ -765,13 +765,10 @@ class BudgetProvider extends ChangeNotifier {
   // Charger les objectifs
   Future<void> _loadGoals(String userId) async {
     try {
-      debugPrint('📤 Appel API: GET /goals/$userId');
       _goals.clear();
       _goals.addAll(await GoalService.getGoals(userId));
-      debugPrint('✅ Goals chargés: ${_goals.length}');
       // OPTIMISATION : notifyListeners() sera appelé par la méthode appelante
     } catch (e) {
-      debugPrint('❌ Erreur chargement goals: $e');
       // En cas d'erreur, laisser la liste vide
       _goals.clear();
       // OPTIMISATION : notifyListeners() sera appelé par la méthode appelante
@@ -1117,7 +1114,6 @@ class BudgetProvider extends ChangeNotifier {
         'categoryId': budget.categoryId != null ? (int.tryParse(budget.categoryId!) ?? budget.categoryId) : null,
         'isRecurring': budget.isRecurring,
       };
-      debugPrint('📤 Body de création de budget: $budgetData');
       await BudgetService.createBudget(budgetData);
       // Recharger la liste complète des budgets depuis le backend
       if (_currentUser != null) {
@@ -1278,8 +1274,6 @@ class BudgetProvider extends ChangeNotifier {
         'targetDate': goal.targetDate?.toIso8601String().split('T')[0], // Format LocalDate (YYYY-MM-DD)
         'categoryId': goal.categoryId != null ? (int.tryParse(goal.categoryId!) ?? goal.categoryId) : null,
       };
-      debugPrint('🔄 Mise à jour goal - currentAmount envoyé: ${goal.currentAmount}');
-      debugPrint('🔄 Données complètes envoyées: $goalData');
       await GoalService.updateGoal(goal.id, goalData);
       // Recharger la liste complète des goals depuis le backend
       if (_currentUser != null) {
@@ -1311,6 +1305,22 @@ class BudgetProvider extends ChangeNotifier {
   Future<void> addAmountToGoal(String goalId, double amount) async {
     try {
       await GoalService.addAmountToGoal(goalId, amount);
+      if (_currentUser != null) {
+        final userId = _currentUser!.id;
+        // Recharger la liste complète des goals pour mettre à jour l'affichage
+        await _loadGoals(userId);
+        notifyListeners();
+      }
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  Future<void> achieveGoal(String goalId) async {
+    try {
+      await GoalService.achieveGoal(goalId);
       if (_currentUser != null) {
         final userId = _currentUser!.id;
         // Recharger la liste complète des goals pour mettre à jour l'affichage

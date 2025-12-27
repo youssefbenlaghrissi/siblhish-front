@@ -94,18 +94,14 @@ class _EditTransactionModalState extends State<EditTransactionModal> {
                   matchingCategory = provider.categories.firstWhere(
                     (cat) => cat.id.toString() == effectiveId.toString(),
                   );
-                  debugPrint('✅ Catégorie trouvée par ID: ${matchingCategory.id} - ${matchingCategory.name}');
                 } catch (e) {
-                  debugPrint('⚠️ Catégorie non trouvée par ID, recherche par nom...');
                   // Si pas trouvé par ID, chercher par nom
                   if (expense.category != null) {
                     try {
                       matchingCategory = provider.categories.firstWhere(
                         (cat) => cat.name.toLowerCase() == expense.category!.name.toLowerCase(),
                       );
-                      debugPrint('✅ Catégorie trouvée par nom: ${matchingCategory.id} - ${matchingCategory.name}');
                     } catch (e) {
-                      debugPrint('❌ Catégorie non trouvée par nom non plus');
                       matchingCategory = null;
                     }
                   }
@@ -116,9 +112,7 @@ class _EditTransactionModalState extends State<EditTransactionModal> {
                   matchingCategory = provider.categories.firstWhere(
                     (cat) => cat.name.toLowerCase() == expense.category!.name.toLowerCase(),
                   );
-                  debugPrint('✅ Catégorie trouvée par nom (pas d\'ID): ${matchingCategory.id} - ${matchingCategory.name}');
                 } catch (e) {
-                  debugPrint('❌ Catégorie non trouvée par nom');
                   matchingCategory = null;
                 }
               }
@@ -128,13 +122,11 @@ class _EditTransactionModalState extends State<EditTransactionModal> {
                 if (matchingCategory != null) {
                   final categoryId = matchingCategory.id;
                   if (_selectedCategoryId != categoryId) {
-                    debugPrint('🔄 Mise à jour catégorie sélectionnée: ${_selectedCategoryId} -> $categoryId');
                     setState(() {
                       _selectedCategoryId = categoryId;
                     });
                   }
                 } else {
-                  debugPrint('⚠️ Aucune catégorie correspondante trouvée');
                 }
               }
             }
@@ -247,7 +239,6 @@ class _EditTransactionModalState extends State<EditTransactionModal> {
           userId: provider.currentUser!.id,
         );
         
-        debugPrint('📤 Modification revenu - Tous les champs:');
         debugPrint('   ID: ${income.id}');
         debugPrint('   Montant: ${income.amount}');
         debugPrint('   Date: ${income.date}');
@@ -295,7 +286,6 @@ class _EditTransactionModalState extends State<EditTransactionModal> {
           userId: provider.currentUser!.id,
         );
         
-        debugPrint('📤 Modification dépense - Tous les champs:');
         debugPrint('   ID: ${expense.id}');
         debugPrint('   Montant: ${expense.amount}');
         debugPrint('   Date: ${expense.date}');

@@ -12,7 +12,6 @@ class CardService {
           .map((json) => Card.fromJson(json as Map<String, dynamic>))
           .toList();
     } catch (e) {
-      debugPrint('❌ Erreur chargement cartes: $e');
       rethrow;
     }
   }

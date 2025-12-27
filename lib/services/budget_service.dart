@@ -18,7 +18,6 @@ class BudgetService {
       final data = response['data'] as List<dynamic>;
       return data.map((json) => Budget.fromJson(json as Map<String, dynamic>)).toList();
     } catch (e) {
-      debugPrint('❌ Erreur chargement budgets: $e');
       return [];
     }
   }

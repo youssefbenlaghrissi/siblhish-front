@@ -58,24 +58,20 @@ class HomeService {
         .join('&');
     
     String endpoint = '/home/transactions/$userId?$queryString';
-    debugPrint('📥 Appel API: $endpoint');
     
     final response = await ApiService.get(endpoint);
     final data = response['data'];
     
     // Vérifier que data est une liste
     if (data == null) {
-      debugPrint('⚠️ Aucune donnée retournée par le backend');
       return [];
     }
     
     if (data is! List) {
-      debugPrint('⚠️ Le backend n\'a pas retourné une liste: ${data.runtimeType}');
       return [];
     }
     
     final dataList = data as List<dynamic>;
-    debugPrint('📊 ${dataList.length} transactions reçues du backend');
     
     // OPTIMISATION : Utiliser directement les données structurées du backend
     // Le backend retourne maintenant un objet 'category' imbriqué au lieu de champs séparés
@@ -87,7 +83,6 @@ class HomeService {
         
         // Vérifier que les champs requis sont présents
         if (jsonMap['id'] == null || jsonMap['amount'] == null || jsonMap['date'] == null) {
-          debugPrint('⚠️ Transaction incomplète: $jsonMap');
           continue;
         }
         
@@ -129,7 +124,6 @@ class HomeService {
             // Fallback : parser la string (ancien format pour compatibilité)
             transactionDate = DateTime.parse(jsonMap['date'] as String);
           } else {
-            debugPrint('⚠️ Date manquante dans la transaction: $jsonMap');
             continue;
           }
           
@@ -156,7 +150,6 @@ class HomeService {
             // Fallback : parser la string (ancien format pour compatibilité)
             transactionDate = DateTime.parse(jsonMap['date'] as String);
           } else {
-            debugPrint('⚠️ Date manquante dans la transaction: $jsonMap');
             continue;
           }
           
@@ -171,13 +164,11 @@ class HomeService {
           ));
         }
       } catch (e) {
-        debugPrint('❌ Erreur parsing transaction: $e');
         debugPrint('   Données: $json');
         // Continuer avec la transaction suivante
       }
     }
     
-    debugPrint('✅ ${transactions.length} transactions converties');
     
     return transactions;
   }

@@ -42,7 +42,6 @@ class ErrorMessageFormatter {
         }
       } catch (e) {
         // Si le parsing JSON échoue, continuer avec le traitement par défaut
-        debugPrint('⚠️ Erreur parsing JSON dans ErrorMessageFormatter: $e');
       }
       
       return 'Une erreur s\'est produite sur le serveur. Veuillez réessayer plus tard.';

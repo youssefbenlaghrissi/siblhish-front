@@ -36,7 +36,6 @@ class IncomeService {
       String incomeId, Map<String, dynamic> incomeData) async {
     final response = await ApiService.put('/incomes/$incomeId', incomeData);
     final data = response['data'] as Map<String, dynamic>;
-    debugPrint('📥 Réponse backend après mise à jour revenu:');
     debugPrint('   Date reçue: ${data['date']}');
     debugPrint('   Données complètes: $data');
     return Income.fromJson(data);

@@ -145,7 +145,6 @@ class _HomeScreenState extends State<HomeScreen> {
         });
       }
     } catch (e) {
-      debugPrint('❌ Erreur chargement unread count: $e');
     }
   }
 

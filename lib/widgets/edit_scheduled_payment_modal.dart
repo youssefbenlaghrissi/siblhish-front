@@ -176,7 +176,6 @@ class _EditScheduledPaymentModalState extends State<EditScheduledPaymentModal> {
         isPaid: widget.payment.isPaid, // Préserver le statut de paiement
       );
 
-      debugPrint('📤 Modification paiement planifié - Tous les champs:');
       debugPrint('   ID: ${payment.id}');
       debugPrint('   Nom: ${payment.name}');
       debugPrint('   Montant: ${payment.amount}');

@@ -292,7 +292,6 @@ class BudgetDistributionPieChartWidget extends StatelessWidget {
       final colorValue = int.parse(cleanedColor);
       return Color(colorValue);
     } catch (e) {
-      debugPrint('⚠️ Erreur parsing couleur "$colorString": $e');
       return Colors.grey;
     }
   }

@@ -631,21 +631,35 @@ class _GoalCard extends StatelessWidget {
             ),
           ],
           const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
+          Wrap(
+            alignment: WrapAlignment.end,
+            spacing: 8,
+            runSpacing: 8,
             children: [
-              TextButton.icon(
-                onPressed: () {
-                  // Add amount to goal
-                  _showAddAmountDialog(context, goal, provider);
-                },
-                icon: const Icon(Icons.add_rounded, size: 16),
-                label: const Text('Ajouter'),
-                style: TextButton.styleFrom(
-                  foregroundColor: AppTheme.primaryColor,
+              if (!isAchieved) ...[
+                TextButton.icon(
+                  onPressed: () {
+                    // Add amount to goal
+                    _showAddAmountDialog(context, goal, provider);
+                  },
+                  icon: const Icon(Icons.add_rounded, size: 16),
+                  label: const Text('Ajouter'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppTheme.primaryColor,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 8),
+                TextButton.icon(
+                  onPressed: () {
+                    // Mark goal as achieved
+                    _showAchieveConfirmationDialog(context, goal, provider);
+                  },
+                  icon: const Icon(Icons.check_circle_rounded, size: 16),
+                  label: const Text('Marquer atteint'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.green,
+                  ),
+                ),
+              ],
               IconButton(
                 icon: const Icon(Icons.edit_rounded, size: 20),
                 color: AppTheme.textSecondary,
@@ -771,6 +785,17 @@ class _GoalCard extends StatelessWidget {
       ),
     );
   }
+
+  void _showAchieveConfirmationDialog(BuildContext context, Goal goal, BudgetProvider provider) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => _AchieveConfirmationDialog(
+        goal: goal,
+        provider: provider,
+      ),
+    );
+  }
 }
 
 class _DeleteConfirmationDialog extends StatefulWidget {
@@ -866,6 +891,107 @@ class _DeleteConfirmationDialogState extends State<_DeleteConfirmationDialog> {
                 ),
                 child: Text(
                   'Supprimer',
+                  style: GoogleFonts.poppins(color: Colors.white),
+                ),
+              ),
+            ],
+    );
+  }
+}
+
+class _AchieveConfirmationDialog extends StatefulWidget {
+  final Goal goal;
+  final BudgetProvider provider;
+
+  const _AchieveConfirmationDialog({
+    required this.goal,
+    required this.provider,
+  });
+
+  @override
+  State<_AchieveConfirmationDialog> createState() => _AchieveConfirmationDialogState();
+}
+
+class _AchieveConfirmationDialogState extends State<_AchieveConfirmationDialog> {
+  bool _isAchieving = false;
+
+  Future<void> _achieveGoal() async {
+    setState(() {
+      _isAchieving = true;
+    });
+
+    try {
+      await widget.provider.achieveGoal(widget.goal.id);
+      if (mounted) {
+        Navigator.pop(context); // Fermer le dialog de confirmation
+        ScaffoldMessenger.of(context).showSnackBar(
+          CustomSnackBar.success(
+            title: 'Objectif marqué comme atteint',
+            description: 'L\'objectif "${widget.goal.name}" a été marqué comme atteint',
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isAchieving = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+      ),
+      title: Text(
+        'Marquer comme atteint',
+        style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
+      ),
+      content: _isAchieving
+          ? Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(),
+                const SizedBox(height: 16),
+                Text(
+                  'Marquage en cours...',
+                  style: GoogleFonts.poppins(),
+                ),
+              ],
+            )
+          : Text(
+              'Êtes-vous sûr de vouloir marquer l\'objectif "${widget.goal.name}" comme atteint ?',
+              style: GoogleFonts.poppins(),
+            ),
+      actions: _isAchieving
+          ? []
+          : [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(
+                  'Annuler',
+                  style: GoogleFonts.poppins(color: Colors.grey),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: _achieveGoal,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: Text(
+                  'Marquer atteint',
                   style: GoogleFonts.poppins(color: Colors.white),
                 ),
               ),

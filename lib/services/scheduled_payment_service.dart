@@ -15,19 +15,6 @@ class ScheduledPaymentService {
     }
   }
 
-  // Obtenir seulement les paiements non payés (optimisé pour la page d'accueil)
-  static Future<List<ScheduledPayment>> getUnpaidPayments(String userId, {int limit = 10}) async {
-    try {
-      final response = await ApiService.get('/scheduled-payments/user/$userId/unpaid?limit=$limit');
-      final data = response['data'] as List<dynamic>;
-      return data.map((json) => ScheduledPayment.fromJson(json as Map<String, dynamic>)).toList();
-    } catch (e) {
-      // Si l'endpoint n'existe pas encore, utiliser l'endpoint complet et filtrer côté client
-      final allPayments = await getScheduledPayments(userId);
-      return allPayments.where((p) => !p.isPaid).take(limit).toList();
-    }
-  }
-
   // Créer un paiement planifié
   static Future<ScheduledPayment> createScheduledPayment(Map<String, dynamic> paymentData) async {
     final response = await ApiService.post('/scheduled-payments', paymentData);
@@ -40,7 +27,6 @@ class ScheduledPaymentService {
       String paymentId, Map<String, dynamic> paymentData) async {
     final response = await ApiService.put('/scheduled-payments/$paymentId', paymentData);
     final data = response['data'] as Map<String, dynamic>;
-    debugPrint('📥 Réponse backend après mise à jour paiement planifié:');
     debugPrint('   Date reçue: ${data['dueDate']}');
     debugPrint('   Données complètes: $data');
     return ScheduledPayment.fromJson(data);

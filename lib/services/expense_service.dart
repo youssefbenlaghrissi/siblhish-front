@@ -37,7 +37,6 @@ class ExpenseService {
       String expenseId, Map<String, dynamic> expenseData) async {
     final response = await ApiService.put('/expenses/$expenseId', expenseData);
     final data = response['data'] as Map<String, dynamic>;
-    debugPrint('📥 Réponse backend après mise à jour dépense:');
     debugPrint('   Date reçue: ${data['date']}');
     debugPrint('   Données complètes: $data');
     return Expense.fromJson(data);

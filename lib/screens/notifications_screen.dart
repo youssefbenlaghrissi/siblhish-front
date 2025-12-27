@@ -52,7 +52,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         }
       }
     } catch (e) {
-      debugPrint('❌ Erreur chargement notifications: $e');
       if (mounted) {
         setState(() => _isLoading = false);
       }
@@ -67,7 +66,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       await NotificationService.markAsRead(notification.id);
       await _loadNotifications();
     } catch (e) {
-      debugPrint('❌ Erreur marquer comme lu: $e');
     }
   }
 
@@ -80,7 +78,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       await NotificationService.markAllAsRead(userId);
       await _loadNotifications();
     } catch (e) {
-      debugPrint('❌ Erreur marquer tout comme lu: $e');
     }
   }
 
@@ -89,7 +86,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       await NotificationService.deleteNotification(notification.id);
       await _loadNotifications();
     } catch (e) {
-      debugPrint('❌ Erreur suppression: $e');
     }
   }
 

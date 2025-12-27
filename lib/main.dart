@@ -91,8 +91,6 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver, Si
       final provider = Provider.of<BudgetProvider>(context, listen: false);
       provider.clearError();
       
-      debugPrint('📱 Ouverture de screen: ${_getScreenName(index)}');
-      
       setState(() {
         _currentIndex = index;
       });
@@ -128,7 +126,6 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver, Si
       duration: const Duration(milliseconds: 300),
     );
     _animationController.forward();
-    debugPrint('📱 Ouverture de screen: ${_getScreenName(_currentIndex)}');
   }
 
   @override
@@ -147,9 +144,6 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver, Si
       final provider = Provider.of<BudgetProvider>(context, listen: false);
       // Ne pas nettoyer la session, seulement les données temporaires si nécessaire
       // provider.clearAllData(); // Commenté pour préserver la session
-      if (kDebugMode) {
-        debugPrint('📱 Application détachée (fermée)');
-      }
     }
   }
 
@@ -188,8 +182,6 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver, Si
           onTap: (index) {
             // Effacer les erreurs précédentes lors du changement d'onglet
             provider.clearError();
-            
-            debugPrint('📱 Ouverture de screen: ${_getScreenName(index)}');
             
             setState(() {
               _currentIndex = index;

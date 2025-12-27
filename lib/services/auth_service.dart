@@ -34,17 +34,14 @@ class AuthService {
         googleUser = await _googleSignIn.signIn();
         
         if (googleUser == null) {
-          debugPrint('❌ Google Sign In cancelled by user');
           return null;
         }
       } else {
-        debugPrint('✅ Session Google restaurée silencieusement: ${googleUser.email}');
       }
       
       // Ne pas nettoyer la session précédente si l'utilisateur est déjà connecté
       // Cela permet de préserver la session entre les ouvertures de l'app
 
-      debugPrint('✅ Google Sign In successful: ${googleUser.email}');
 
       // 2. Envoyer au backend pour créer/récupérer l'utilisateur
       final response = await http.post(
@@ -58,7 +55,6 @@ class AuthService {
         }),
       ).timeout(ApiConfig.timeout);
 
-      debugPrint('📥 Backend response: ${response.statusCode}');
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         // Parser seulement le début du JSON (avant les relations circulaires)
@@ -80,14 +76,11 @@ class AuthService {
         // Sauvegarder la session localement
         await _saveUserData(userData);
         
-        debugPrint('✅ User authenticated and saved: ID=${userData['id']}');
         return userData;
       } else {
-        debugPrint('❌ Backend error: ${response.body}');
         throw Exception('Erreur serveur: ${response.statusCode}');
       }
     } catch (e) {
-      debugPrint('❌ Sign In error: $e');
       rethrow;
     }
   }
@@ -103,16 +96,13 @@ class AuthService {
       
       // 1. Déconnexion Google SDK
       await _googleSignIn.signOut();
-      debugPrint('✅ Google Sign Out successful');
       
       // 2. Supprimer la session locale
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_userIdKey);
       await prefs.remove(_userDataKey);
       
-      debugPrint('✅ Logout complete - Session cleared');
     } catch (e) {
-      debugPrint('❌ Logout error: $e');
       rethrow;
     }
   }

@@ -64,7 +64,6 @@ class ApiService {
     final url = '${ApiConfig.baseUrl}$endpoint';
     try {
       debugPrint('🌐 API PUT: $url');
-      debugPrint('📤 Request body: ${json.encode(body)}');
       
       final response = await http
           .put(
@@ -73,9 +72,6 @@ class ApiService {
             body: json.encode(body),
           )
           .timeout(ApiConfig.timeout);
-
-      debugPrint('📥 Response status: ${response.statusCode}');
-      debugPrint('📥 Response body: ${response.body}');
 
       if (response.statusCode == 200) {
         return json.decode(response.body) as Map<String, dynamic>;

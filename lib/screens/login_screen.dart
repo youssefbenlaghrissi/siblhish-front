@@ -33,16 +33,13 @@ class _LoginScreenState extends State<LoginScreen> {
         
         if (userId != null && userId.isNotEmpty) {
           try {
-            debugPrint('🔄 Initialisation des données après authentification...');
             await provider.initialize(userId);
-            debugPrint('✅ Données initialisées avec succès');
             
             // Naviguer directement vers l'écran principal
             if (mounted) {
               Navigator.of(context).pushReplacementNamed('/main');
             }
           } catch (e) {
-            debugPrint('❌ Erreur initialisation: $e');
             if (mounted) {
               setState(() {
                 _errorMessage = 'Erreur lors du chargement des données: ${e.toString()}';
