@@ -78,6 +78,7 @@ class BudgetProvider extends ChangeNotifier {
   bool _categoriesLoaded = false; // Flag pour savoir si on a déjà chargé les catégories (ne changent pas souvent)
   bool _isLoadingStatistics = false; // Flag pour éviter les appels multiples pour les statistiques
   bool _isLoadingHomeData = false; // Flag pour éviter les appels multiples pour les données de l'accueil
+  bool _homeDataLoaded = false; // Flag pour savoir si les données de l'accueil ont été chargées au moins une fois
   bool _isLoadingGoals = false; // Flag pour éviter les appels multiples pour les objectifs
 
   // Getters
@@ -132,6 +133,8 @@ class BudgetProvider extends ChangeNotifier {
   bool get availableCardsLoaded => _availableCardsLoaded;
 
   // Données du backend
+  Map<String, dynamic>? get balanceData => _balanceData;
+  
   double get totalIncome => (_balanceData?['totalIncome'] as num?)?.toDouble() ?? 0.0;
 
   double get totalExpenses => (_balanceData?['totalExpenses'] as num?)?.toDouble() ?? 0.0;
@@ -166,6 +169,9 @@ class BudgetProvider extends ChangeNotifier {
       // OPTIMISATION : Un seul notifyListeners() à la fin
       notifyListeners();
       
+      // Charger les données de l'accueil en arrière-plan (une seule fois)
+      _loadHomeDataInBackground(userId);
+      
       // Charger les catégories en arrière-plan pour éviter "Catégorie inconnue"
       loadCategoriesIfNeeded().catchError((error) {
         // Ignorer les erreurs de chargement des catégories en arrière-plan
@@ -176,6 +182,40 @@ class BudgetProvider extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
       rethrow;
+    }
+  }
+  
+  // Charger les données de l'accueil en arrière-plan (appelé une seule fois depuis initialize)
+  Future<void> _loadHomeDataInBackground(String userId) async {
+    // Éviter les appels multiples
+    if (_isLoadingHomeData || _homeDataLoaded) {
+      return;
+    }
+    
+    _isLoadingHomeData = true;
+    try {
+      // Marquer HomeScreen comme actif
+      _activeScreen = 'home';
+      
+      // OPTIMISATION : Charger TOUT en parallèle pour maximiser la vitesse
+      await Future.wait([
+        _loadBalance(userId),
+        loadRecentTransactions(limit: 3),
+        _loadScheduledPayments(userId), // Charger tous les paiements (pas de limite)
+      ]);
+      
+      _homeDataLoaded = true;
+      
+      // OPTIMISATION : Un seul notifyListeners() après tous les chargements
+      notifyListeners();
+      
+      // Charger les cartes disponibles et les favoris en arrière-plan après l'affichage de la page d'accueil
+      _loadAvailableCardsInBackground();
+      _loadCardFavoritesInBackground(userId);
+    } catch (e) {
+      // Ne pas rethrow, laisser les listes vides
+    } finally {
+      _isLoadingHomeData = false;
     }
   }
 
@@ -192,6 +232,7 @@ class BudgetProvider extends ChangeNotifier {
     _scheduledPayments.clear();
     _homeRecentTransactions.clear();
     _balanceData = null;
+    _homeDataLoaded = false; // Réinitialiser le flag
     // Nettoyer le stockage local du balance
     LocalStorageService.clearBalanceData();
     _isInitialized = false;
@@ -351,11 +392,18 @@ class BudgetProvider extends ChangeNotifier {
   }
 
   // Charger les données nécessaires pour la page d'accueil (lazy loading)
-  Future<void> loadHomeData() async {
+  Future<void> loadHomeData({bool forceReload = false}) async {
     if (_currentUser == null) return;
     
     // Éviter les appels multiples
     if (_isLoadingHomeData) {
+      return;
+    }
+    
+    // Si les données sont déjà chargées et qu'on ne force pas le rechargement, ne rien faire
+    if (_homeDataLoaded && !forceReload && 
+        _balanceData != null && 
+        _homeRecentTransactions.isNotEmpty) {
       return;
     }
     
@@ -371,6 +419,8 @@ class BudgetProvider extends ChangeNotifier {
         loadRecentTransactions(limit: 3),
         _loadScheduledPayments(userId), // Charger tous les paiements (pas de limite)
       ]);
+      
+      _homeDataLoaded = true;
       
       // OPTIMISATION : Un seul notifyListeners() après tous les chargements
       notifyListeners();
@@ -1161,6 +1211,35 @@ class BudgetProvider extends ChangeNotifier {
     if (_isLoadingBudgets || _currentUser == null) return;
     
     _isLoadingBudgets = true;
+    notifyListeners(); // Notifier immédiatement pour afficher le skeleton
+    try {
+      final budgets = await BudgetService.getBudgets(_currentUser!.id, month: month);
+      _budgets.clear();
+      _budgets.addAll(budgets);
+      notifyListeners();
+    } catch (e) {
+      _budgets.clear();
+    } finally {
+      _isLoadingBudgets = false;
+    }
+  }
+
+  // Charger les budgets (force le rechargement même si déjà en cours)
+  Future<void> loadBudgets({String? month, bool forceReload = false}) async {
+    if (_currentUser == null) return;
+    
+    // Si forceReload est true, réinitialiser le flag de chargement
+    if (forceReload) {
+      _isLoadingBudgets = false;
+    }
+    
+    // Si déjà en cours et pas de forceReload, attendre la fin du chargement en cours
+    if (_isLoadingBudgets && !forceReload) {
+      return;
+    }
+    
+    _isLoadingBudgets = true;
+    notifyListeners(); // Notifier immédiatement pour afficher le skeleton
     try {
       final budgets = await BudgetService.getBudgets(_currentUser!.id, month: month);
       _budgets.clear();
@@ -1175,7 +1254,7 @@ class BudgetProvider extends ChangeNotifier {
 
   // Recharger les budgets
   Future<void> reloadBudgets({String? month}) async {
-    await loadBudgetsIfNeeded(month: month);
+    await loadBudgets(month: month, forceReload: true);
   }
 
   // Obtenir les budgets mensuels actifs pour une catégorie
@@ -1205,9 +1284,11 @@ class BudgetProvider extends ChangeNotifier {
         'isRecurring': budget.isRecurring,
       };
       await BudgetService.createBudget(budgetData);
-      // Recharger la liste complète des budgets depuis le backend
+      // Recharger la liste complète des budgets depuis le backend (forcer le rechargement)
+      // Note: Le mois sera géré par l'écran qui appelle cette méthode
       if (_currentUser != null) {
-        await loadBudgetsIfNeeded();
+        await loadBudgets(forceReload: true);
+        notifyListeners();
       }
     } catch (e) {
       _error = e.toString();
@@ -1227,9 +1308,11 @@ class BudgetProvider extends ChangeNotifier {
         'isRecurring': budget.isRecurring,
       };
       await BudgetService.updateBudget(budget.id, budgetData);
-      // Recharger la liste complète des budgets depuis le backend
+      // Recharger la liste complète des budgets depuis le backend (forcer le rechargement)
+      // Note: Le mois sera géré par l'écran qui appelle cette méthode
       if (_currentUser != null) {
-        await loadBudgetsIfNeeded();
+        await loadBudgets(forceReload: true);
+        notifyListeners();
       }
     } catch (e) {
       _error = e.toString();
@@ -1241,9 +1324,11 @@ class BudgetProvider extends ChangeNotifier {
   Future<void> deleteBudget(String id) async {
     try {
       await BudgetService.deleteBudget(id);
-      // Recharger la liste complète des budgets depuis le backend
+      // Recharger la liste complète des budgets depuis le backend (forcer le rechargement)
+      // Note: Le mois sera géré par l'écran qui appelle cette méthode
       if (_currentUser != null) {
-        await loadBudgetsIfNeeded();
+        await loadBudgets(forceReload: true);
+        notifyListeners();
       }
     } catch (e) {
       _error = e.toString();

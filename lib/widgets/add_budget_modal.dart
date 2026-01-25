@@ -23,6 +23,7 @@ class _AddBudgetModalState extends State<AddBudgetModal> {
   DateTime? _endDate;
   bool _isRecurring = false;
   bool _isSubmitting = false;
+  bool _hasAttemptedSubmit = false; // Flag pour savoir si l'utilisateur a déjà cliqué sur "Ajouter"
 
   @override
   void initState() {
@@ -61,6 +62,10 @@ class _AddBudgetModalState extends State<AddBudgetModal> {
           _endDate = DateTime(_startDate!.year, _startDate!.month + 1, 0, 23, 59, 59);
         }
       });
+      // Revalider après la sélection si l'utilisateur a déjà tenté de soumettre
+      if (_hasAttemptedSubmit) {
+        _formKey.currentState?.validate();
+      }
     }
   }
 
@@ -75,6 +80,10 @@ class _AddBudgetModalState extends State<AddBudgetModal> {
       setState(() {
         _endDate = DateTime(picked.year, picked.month, picked.day, 23, 59, 59);
       });
+      // Revalider après la sélection si l'utilisateur a déjà tenté de soumettre
+      if (_hasAttemptedSubmit) {
+        _formKey.currentState?.validate();
+      }
     }
   }
 
@@ -84,6 +93,11 @@ class _AddBudgetModalState extends State<AddBudgetModal> {
   }
 
   Future<void> _submit() async {
+    // Marquer que l'utilisateur a tenté de soumettre
+    setState(() {
+      _hasAttemptedSubmit = true;
+    });
+    
     if (!_formKey.currentState!.validate() || _isSubmitting) return;
     if (_selectedCategory == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -220,6 +234,7 @@ class _AddBudgetModalState extends State<AddBudgetModal> {
               padding: const EdgeInsets.all(20),
               child: Form(
                 key: _formKey,
+                autovalidateMode: _hasAttemptedSubmit ? AutovalidateMode.onUserInteraction : AutovalidateMode.disabled,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -229,7 +244,7 @@ class _AddBudgetModalState extends State<AddBudgetModal> {
                         final categories = provider.categories;
                         return DropdownButtonFormField<models.Category>(
                           decoration: const InputDecoration(
-                            labelText: 'Catégorie',
+                            labelText: 'Catégorie *',
                             prefixIcon: Icon(Icons.category_rounded),
                           ),
                           value: _selectedCategory,
@@ -249,8 +264,10 @@ class _AddBudgetModalState extends State<AddBudgetModal> {
                             setState(() {
                               _selectedCategory = value;
                             });
-                            // Revalider le formulaire pour effacer le message d'erreur
-                            _formKey.currentState?.validate();
+                            // Revalider après la sélection si l'utilisateur a déjà tenté de soumettre
+                            if (_hasAttemptedSubmit) {
+                              _formKey.currentState?.validate();
+                            }
                           },
                           validator: (value) {
                             if (value == null) {
@@ -268,7 +285,7 @@ class _AddBudgetModalState extends State<AddBudgetModal> {
                       onTap: _isSubmitting ? null : _selectStartDate,
                       child: InputDecorator(
                         decoration: const InputDecoration(
-                          labelText: 'Date de début',
+                          labelText: 'Date de début *',
                           prefixIcon: Icon(Icons.calendar_today_rounded),
                           suffixIcon: Icon(Icons.arrow_drop_down),
                         ),
@@ -288,7 +305,7 @@ class _AddBudgetModalState extends State<AddBudgetModal> {
                       onTap: _isSubmitting ? null : _selectEndDate,
                       child: InputDecorator(
                         decoration: const InputDecoration(
-                          labelText: 'Date de fin',
+                          labelText: 'Date de fin *',
                           prefixIcon: Icon(Icons.event_rounded),
                           suffixIcon: Icon(Icons.arrow_drop_down),
                         ),
@@ -307,15 +324,17 @@ class _AddBudgetModalState extends State<AddBudgetModal> {
                     TextFormField(
                       controller: _amountController,
                       decoration: const InputDecoration(
-                        labelText: 'Montant',
+                        labelText: 'Montant cible *',
                         prefixText: 'MAD ',
                         prefixIcon: Icon(Icons.attach_money_rounded),
                       ),
                       keyboardType: TextInputType.number,
                       enabled: !_isSubmitting,
                       onChanged: (value) {
-                        // Revalider le formulaire pour effacer le message d'erreur
-                        _formKey.currentState?.validate();
+                        // Revalider après la saisie si l'utilisateur a déjà tenté de soumettre
+                        if (_hasAttemptedSubmit) {
+                          _formKey.currentState?.validate();
+                        }
                       },
                       validator: (value) {
                         if (value == null || value.isEmpty) {

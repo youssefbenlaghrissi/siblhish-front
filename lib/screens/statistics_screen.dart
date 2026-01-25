@@ -275,24 +275,8 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     );
 
     if (selectedCards != null && selectedCards.isNotEmpty) {
-      // Afficher un spinner pendant la mise à jour
-      if (mounted) {
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (context) => const Center(
-            child: CircularProgressIndicator(),
-          ),
-        );
-      }
-      
       try {
         await provider.updateStatisticsCardsPreferences(selectedCards);
-        
-        // Fermer le spinner
-        if (mounted) {
-          Navigator.of(context).pop();
-        }
         
         // Recharger les favoris depuis le provider (qui les mettra à jour)
         // Le provider mettra à jour les favoris après updateStatisticsCardsPreferences
@@ -333,9 +317,8 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
           );
         }
       } catch (e) {
-        // Fermer le spinner en cas d'erreur
+        // Afficher l'erreur
         if (mounted) {
-          Navigator.of(context).pop(); // Fermer le spinner
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Erreur: ${e.toString()}'),

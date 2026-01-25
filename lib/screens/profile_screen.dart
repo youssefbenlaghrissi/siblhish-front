@@ -14,6 +14,8 @@ import '../widgets/edit_category_color_modal.dart';
 import '../utils/color_utils.dart';
 import '../services/auth_service.dart';
 import 'notifications_screen.dart';
+import '../widgets/skeleton_loader.dart';
+import '../widgets/custom_snackbar.dart';
 
 class ProfileScreen extends StatelessWidget {
   final bool isVisible;
@@ -170,32 +172,48 @@ class _UserInfoCard extends StatelessWidget {
           Container(
             width: 70,
             height: 70,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  AppTheme.primaryColor,
-                  AppTheme.secondaryColor,
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
+            decoration: const BoxDecoration(
               shape: BoxShape.circle,
             ),
-            child: Center(
-              child: Text(
-                user?.firstName.substring(0, 1).toUpperCase() ?? 'U',
-                style: GoogleFonts.poppins(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
+            child: ClipOval(
+              child: Image.asset(
+                'assets/icons/avatar.png',
+                width: 70,
+                height: 70,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  // Fallback si l'image n'est pas trouvée
+                  return Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          AppTheme.primaryColor,
+                          AppTheme.secondaryColor,
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Center(
+                      child: Text(
+                        user?.firstName.substring(0, 1).toUpperCase() ?? 'U',
+                        style: GoogleFonts.poppins(
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
           ),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
                   user?.fullName ?? 'Utilisateur',
@@ -203,6 +221,7 @@ class _UserInfoCard extends StatelessWidget {
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                   ),
+                  textAlign: TextAlign.right,
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -211,16 +230,10 @@ class _UserInfoCard extends StatelessWidget {
                     fontSize: 14,
                     color: AppTheme.textSecondary,
                   ),
+                  textAlign: TextAlign.right,
                 ),
               ],
             ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.edit_rounded),
-            color: AppTheme.primaryColor,
-            onPressed: () {
-              // Edit user info
-            },
           ),
         ],
       ),
@@ -244,7 +257,6 @@ class _BudgetsSection extends StatefulWidget {
 class _BudgetsSectionState extends State<_BudgetsSection> {
   DateTime _selectedMonth = DateTime.now();
   String? _selectedMonthString;
-  bool _hasLoaded = false;
 
   @override
   void initState() {
@@ -256,10 +268,10 @@ class _BudgetsSectionState extends State<_BudgetsSection> {
   @override
   void didUpdateWidget(_BudgetsSection oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Charger les budgets quand l'écran devient visible pour la première fois
-    if (widget.isVisible && !oldWidget.isVisible && !_hasLoaded) {
+    // Charger les budgets à chaque fois que l'écran devient visible
+    if (widget.isVisible && !oldWidget.isVisible) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && widget.isVisible && !_hasLoaded) {
+        if (mounted && widget.isVisible) {
           _loadBudgets();
         }
       });
@@ -271,10 +283,8 @@ class _BudgetsSectionState extends State<_BudgetsSection> {
   }
 
   Future<void> _loadBudgets() async {
-    if (!_hasLoaded) {
-      _hasLoaded = true;
-    }
-    await widget.provider.loadBudgetsIfNeeded(month: _selectedMonthString);
+    // Forcer le rechargement à chaque fois avec le mois sélectionné
+    await widget.provider.loadBudgets(month: _selectedMonthString, forceReload: true);
   }
 
   Future<void> _selectMonth() async {
@@ -333,7 +343,7 @@ class _BudgetsSectionState extends State<_BudgetsSection> {
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  GestureDetector(
+                  InkWell(
                     onTap: () {
                       setState(() {
                         _selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month - 1);
@@ -341,19 +351,21 @@ class _BudgetsSectionState extends State<_BudgetsSection> {
                       });
                       _loadBudgets();
                     },
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
                       child: Icon(
                         Icons.chevron_left_rounded,
-                        size: 20,
+                        size: 24,
                         color: AppTheme.textSecondary,
                       ),
                     ),
                   ),
-                  GestureDetector(
+                  InkWell(
                     onTap: _selectMonth,
+                    borderRadius: BorderRadius.circular(8),
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       child: Text(
                         DateFormat('MMMM, yyyy', 'fr_FR').format(_selectedMonth),
                         style: GoogleFonts.poppins(
@@ -365,7 +377,7 @@ class _BudgetsSectionState extends State<_BudgetsSection> {
                       ),
                     ),
                   ),
-                  GestureDetector(
+                  InkWell(
                     onTap: () {
                       setState(() {
                         _selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month + 1);
@@ -373,11 +385,12 @@ class _BudgetsSectionState extends State<_BudgetsSection> {
                       });
                       _loadBudgets();
                     },
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
                       child: Icon(
                         Icons.chevron_right_rounded,
-                        size: 20,
+                        size: 24,
                         color: AppTheme.textSecondary,
                       ),
                     ),
@@ -392,7 +405,15 @@ class _BudgetsSectionState extends State<_BudgetsSection> {
         if (widget.provider.isLoadingBudgets)
           const Padding(
             padding: EdgeInsets.all(20),
-            child: Center(child: CircularProgressIndicator()),
+            child: Column(
+              children: [
+                BudgetCardSkeleton(),
+                SizedBox(height: 12),
+                BudgetCardSkeleton(),
+                SizedBox(height: 12),
+                BudgetCardSkeleton(),
+              ],
+            ),
           )
         else if (filteredBudgets.isEmpty)
           Padding(
@@ -528,7 +549,8 @@ class _BudgetCard extends StatelessWidget {
     
     final spent = budget.spent;
     final total = budget.amount;
-    final percentage = budget.percentageUsed;
+    // Calculer le pourcentage côté frontend pour garantir la précision
+    final percentage = total > 0 ? (spent / total) * 100 : 0.0;
     
     // Déterminer le statut et la couleur
     Color statusColor;
@@ -646,18 +668,204 @@ class _BudgetCard extends StatelessWidget {
                 const SizedBox(height: 8),
                 // Percentage
                 Text(
-                  '${percentage.toStringAsFixed(0)}%',
+                  percentage < 1 
+                    ? '${percentage.toStringAsFixed(2)}%'  // Afficher 2 décimales si < 1%
+                    : '${percentage.toStringAsFixed(1)}%', // Afficher 1 décimale si >= 1%
                   style: GoogleFonts.poppins(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                     color: AppTheme.textSecondary,
                   ),
                 ),
+                const SizedBox(height: 12),
+                // Ligne avec dates et actions modifier/supprimer
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.calendar_today_rounded,
+                          size: 14,
+                          color: AppTheme.textSecondary,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          budget.startDate != null && budget.endDate != null
+                            ? '${DateFormat('dd MMM', 'fr').format(budget.startDate!)} - ${DateFormat('dd MMM yyyy', 'fr').format(budget.endDate!)}'
+                            : 'Période non définie',
+                          style: GoogleFonts.poppins(
+                            fontSize: 12,
+                            color: AppTheme.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                    // Icônes modifier et supprimer à droite
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.edit_rounded, size: 20),
+                          color: AppTheme.textSecondary,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          onPressed: () {
+                            showModalBottomSheet(
+                              context: context,
+                              isScrollControlled: true,
+                              backgroundColor: Colors.transparent,
+                              builder: (context) => EditBudgetModal(
+                                budget: budget,
+                                onUpdated: onUpdated,
+                              ),
+                            );
+                          },
+                        ),
+                        const SizedBox(width: 4),
+                        IconButton(
+                          icon: const Icon(Icons.delete_rounded, size: 20),
+                          color: AppTheme.expenseColor,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          onPressed: () => _showDeleteConfirmationDialog(context, budget, provider, onUpdated),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
         ],
       ),
+    );
+  }
+
+  void _showDeleteConfirmationDialog(BuildContext context, Budget budget, BudgetProvider provider, VoidCallback onUpdated) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => _DeleteBudgetConfirmationDialog(
+        budget: budget,
+        provider: provider,
+        onUpdated: onUpdated,
+      ),
+    );
+  }
+}
+
+class _DeleteBudgetConfirmationDialog extends StatefulWidget {
+  final Budget budget;
+  final BudgetProvider provider;
+  final VoidCallback onUpdated;
+
+  const _DeleteBudgetConfirmationDialog({
+    required this.budget,
+    required this.provider,
+    required this.onUpdated,
+  });
+
+  @override
+  State<_DeleteBudgetConfirmationDialog> createState() => _DeleteBudgetConfirmationDialogState();
+}
+
+class _DeleteBudgetConfirmationDialogState extends State<_DeleteBudgetConfirmationDialog> {
+  bool _isDeleting = false;
+
+  Future<void> _deleteBudget() async {
+    setState(() {
+      _isDeleting = true;
+    });
+
+    try {
+      await widget.provider.deleteBudget(widget.budget.id);
+      if (mounted) {
+        Navigator.pop(context); // Fermer le dialog de confirmation
+        widget.onUpdated(); // Recharger les budgets
+        ScaffoldMessenger.of(context).showSnackBar(
+          CustomSnackBar.success(
+            title: 'Budget supprimé avec succès',
+            description: 'Le budget a été supprimé',
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isDeleting = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final category = widget.provider.categories.firstWhere(
+      (c) => c.id == widget.budget.categoryId,
+      orElse: () => Category(
+        id: widget.budget.categoryId ?? '',
+        name: 'Catégorie supprimée',
+        icon: '📦',
+        color: '#9E9E9E',
+      ),
+    );
+
+    return AlertDialog(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+      ),
+      title: Text(
+        'Supprimer le budget',
+        style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
+      ),
+      content: _isDeleting
+          ? Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(),
+                const SizedBox(height: 16),
+                Text(
+                  'Suppression en cours...',
+                  style: GoogleFonts.poppins(),
+                ),
+              ],
+            )
+          : Text(
+              'Êtes-vous sûr de vouloir supprimer le budget pour "${category.name}" ?',
+              style: GoogleFonts.poppins(),
+            ),
+      actions: _isDeleting
+          ? []
+          : [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(
+                  'Annuler',
+                  style: GoogleFonts.poppins(color: Colors.grey),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: _deleteBudget,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: Text(
+                  'Supprimer',
+                  style: GoogleFonts.poppins(color: Colors.white),
+                ),
+              ),
+            ],
     );
   }
 }

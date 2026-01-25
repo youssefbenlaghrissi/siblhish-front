@@ -11,6 +11,7 @@ class ScheduledPayment {
   final String notificationOption; // NONE, ON_DUE_DATE, ONE_DAY_BEFORE, THREE_DAYS_BEFORE
   final String userId;
   final bool isPaid;
+  final DateTime? paidDate; // Date de paiement
 
   ScheduledPayment({
     required this.id,
@@ -25,6 +26,7 @@ class ScheduledPayment {
     this.notificationOption = 'NONE',
     required this.userId,
     this.isPaid = false,
+    this.paidDate,
   });
 
   Map<String, dynamic> toJson() => {
@@ -41,20 +43,32 @@ class ScheduledPayment {
         'isPaid': isPaid,
       };
 
-  factory ScheduledPayment.fromJson(Map<String, dynamic> json) => ScheduledPayment(
-        id: json['id'].toString(),
-        name: json['name'] ?? '',
-        categoryId: (json['categoryId'] ?? json['category']?['id'])?.toString() ?? '',
-        paymentMethod: json['paymentMethod'] ?? 'CASH',
-        amount: (json['amount'] as num).toDouble(),
-        beneficiary: json['beneficiary'],
-        dueDate: DateTime.parse(json['dueDate']),
-        isRecurring: json['isRecurring'] ?? false,
-        recurrenceFrequency: json['recurrenceFrequency'],
-        notificationOption: json['notificationOption'] ?? 'NONE',
-        userId: json['userId'].toString(),
-        isPaid: json['isPaid'] ?? false,
-      );
+  factory ScheduledPayment.fromJson(Map<String, dynamic> json) {
+    DateTime? paidDate;
+    if (json['paidDate'] != null) {
+      try {
+        paidDate = DateTime.parse(json['paidDate']);
+      } catch (e) {
+        paidDate = null;
+      }
+    }
+    
+    return ScheduledPayment(
+      id: json['id'].toString(),
+      name: json['name'] ?? '',
+      categoryId: (json['categoryId'] ?? json['category']?['id'])?.toString() ?? '',
+      paymentMethod: json['paymentMethod'] ?? 'CASH',
+      amount: (json['amount'] as num).toDouble(),
+      beneficiary: json['beneficiary'],
+      dueDate: DateTime.parse(json['dueDate']),
+      isRecurring: json['isRecurring'] ?? false,
+      recurrenceFrequency: json['recurrenceFrequency'],
+      notificationOption: json['notificationOption'] ?? 'NONE',
+      userId: json['userId'].toString(),
+      isPaid: json['isPaid'] ?? false,
+      paidDate: paidDate,
+    );
+  }
 
   ScheduledPayment copyWith({
     String? id,
@@ -69,6 +83,7 @@ class ScheduledPayment {
     String? notificationOption,
     String? userId,
     bool? isPaid,
+    DateTime? paidDate,
   }) {
     return ScheduledPayment(
       id: id ?? this.id,
@@ -83,6 +98,7 @@ class ScheduledPayment {
       notificationOption: notificationOption ?? this.notificationOption,
       userId: userId ?? this.userId,
       isPaid: isPaid ?? this.isPaid,
+      paidDate: paidDate ?? this.paidDate,
     );
   }
 }

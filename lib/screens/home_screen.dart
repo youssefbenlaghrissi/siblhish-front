@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -48,12 +49,11 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void didUpdateWidget(HomeScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Si l'écran vient de devenir visible, charger les données
+    // Si l'écran vient de devenir visible
     if (widget.isVisible && !oldWidget.isVisible) {
       // Marquer HomeScreen comme actif
       context.read<BudgetProvider>().setActiveScreen('home');
-      _homeDataLoadScheduled = false; // Réinitialiser le flag
-      _loadHomeDataIfNeeded();
+      // Ne pas charger les données ici, elles sont déjà chargées en arrière-plan par initialize()
       _loadUnreadCount();
       _startPeriodicNotificationCheck();
     }
@@ -66,13 +66,13 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    // Si l'écran est visible au démarrage, charger les données
+    // Si l'écran est visible au démarrage
     if (widget.isVisible) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && widget.isVisible) {
           // Marquer HomeScreen comme actif
           context.read<BudgetProvider>().setActiveScreen('home');
-          _loadHomeDataIfNeeded();
+          // Ne pas charger les données ici, elles sont déjà chargées en arrière-plan par initialize()
           _loadUnreadCount();
           _startPeriodicNotificationCheck();
         }
@@ -84,6 +84,13 @@ class _HomeScreenState extends State<HomeScreen> {
     // Éviter les appels multiples en utilisant le flag du provider
     final provider = context.read<BudgetProvider>();
     if (provider.currentUser != null && !provider.isLoadingHomeData && !_homeDataLoadScheduled) {
+      // Vérifier si les données sont déjà chargées (balance et transactions récentes)
+      final hasData = provider.balanceData != null && provider.homeRecentTransactions.isNotEmpty;
+      if (hasData) {
+        // Les données sont déjà chargées, ne pas recharger
+        return;
+      }
+      
       _homeDataLoadScheduled = true;
       try {
         await provider.loadHomeData();
@@ -1591,7 +1598,7 @@ class _ScheduledPaymentCardState extends State<_ScheduledPaymentCard> {
                       const SizedBox(width: 4),
                       Text(
                         isPaid
-                            ? 'Payé le ${DateFormatter.formatDateWithoutYear(widget.payment.dueDate)}'
+                            ? 'Payé le ${DateFormatter.formatDateWithoutYear(widget.payment.paidDate ?? widget.payment.dueDate)}'
                             : isOverdue
                                 ? 'En retard'
                                 : daysUntilDue == 0

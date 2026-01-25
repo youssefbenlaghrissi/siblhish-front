@@ -10,8 +10,9 @@ import '../utils/date_formatter.dart';
 
 class EditBudgetModal extends StatefulWidget {
   final Budget budget;
+  final VoidCallback? onUpdated;
 
-  const EditBudgetModal({super.key, required this.budget});
+  const EditBudgetModal({super.key, required this.budget, this.onUpdated});
 
   @override
   State<EditBudgetModal> createState() => _EditBudgetModalState();
@@ -138,6 +139,8 @@ class _EditBudgetModalState extends State<EditBudgetModal> {
 
       if (mounted) {
         Navigator.pop(context);
+        // Appeler le callback pour recharger les budgets avec le mois actuel
+        widget.onUpdated?.call();
         ScaffoldMessenger.of(context).showSnackBar(
           CustomSnackBar.success(
             title: 'Budget supprimé',
@@ -215,6 +218,8 @@ class _EditBudgetModalState extends State<EditBudgetModal> {
 
       if (mounted) {
         Navigator.pop(context);
+        // Appeler le callback pour recharger les budgets avec le mois actuel
+        widget.onUpdated?.call();
         ScaffoldMessenger.of(context).showSnackBar(
           CustomSnackBar.success(
             title: 'Budget modifié avec succès',
