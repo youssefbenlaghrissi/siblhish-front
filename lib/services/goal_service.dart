@@ -43,7 +43,10 @@ class GoalService {
 
   // Marquer un objectif comme atteint
   static Future<Goal> achieveGoal(String goalId) async {
-    final response = await ApiService.post('/goals/$goalId/achieve', {});
+    // Utiliser PUT pour mettre à jour l'objectif avec isAchieved: true
+    final response = await ApiService.put('/goals/$goalId', {
+      'isAchieved': true,
+    });
     final data = response['data'] as Map<String, dynamic>;
     return Goal.fromJson(data);
   }

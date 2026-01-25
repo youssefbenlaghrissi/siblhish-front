@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -136,15 +137,20 @@ class BarChartWidget extends StatelessWidget {
                             sideTitles: SideTitles(
                               showTitles: true,
                               getTitlesWidget: (value, meta) {
-                                return Text(
-                                  _formatCurrency(value),
-                                  style: GoogleFonts.poppins(
-                                    fontSize: 10,
-                                    color: Colors.grey[600],
+                                return Padding(
+                                  padding: const EdgeInsets.only(right: 8),
+                                  child: Text(
+                                    _formatCurrency(value),
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 10,
+                                      color: Colors.grey[600],
+                                    ),
+                                    textAlign: TextAlign.right,
                                   ),
                                 );
                               },
-                              reservedSize: 50,
+                              reservedSize: 75,
+                              interval: _getYAxisInterval(),
                             ),
                           ),
                           topTitles: const AxisTitles(
@@ -157,7 +163,7 @@ class BarChartWidget extends StatelessWidget {
                         gridData: FlGridData(
                           show: true,
                           drawVerticalLine: false,
-                          horizontalInterval: maxY / 5,
+                          horizontalInterval: _getYAxisInterval(),
                           getDrawingHorizontalLine: (value) {
                             return FlLine(
                               color: Colors.grey[200]!,
@@ -198,56 +204,120 @@ class BarChartWidget extends StatelessWidget {
                         }).toList(),
                       ),
                     ),
-                    // Superposer les valeurs au-dessus des barres
+                    // Afficher les valeurs sur les barres en utilisant les coordonnées du graphique
                     ...monthlyData.asMap().entries.map((entry) {
                       final index = entry.key;
                       final data = entry.value;
-                      final chartWidth = constraints.maxWidth;
-                      final leftMargin = 50.0;
+                      
+                      // Utiliser les mêmes marges que fl_chart
+                      final leftMargin = 75.0;
                       final bottomMargin = 40.0;
                       final topMargin = 10.0;
                       final availableHeight = chartHeight - bottomMargin - topMargin;
                       final availableWidth = chartWidth - leftMargin;
-                      final barGroupWidth = availableWidth / monthlyData.length;
                       
-                      // Position X du centre du groupe de barres
-                      final groupCenterX = leftMargin + (index * barGroupWidth) + (barGroupWidth / 2);
+                      // Calculer la position X exacte du centre du groupe
+                      // fl_chart utilise spaceAround, donc on doit calculer l'espacement
+                      final totalSpace = availableWidth;
+                      final totalBarsWidth = monthlyData.length * 20.0; // Largeur approximative des barres
+                      final totalSpacing = totalSpace - totalBarsWidth;
+                      final spacingBetweenGroups = monthlyData.length > 1 
+                          ? totalSpacing / (monthlyData.length - 1) 
+                          : 0.0;
                       
-                      // Calculer la hauteur des barres en pixels
-                      final incomeBarHeight = (data.totalIncome / maxY) * availableHeight;
-                      final expenseBarHeight = (data.totalExpenses / maxY) * availableHeight;
+                      // Position X du centre du groupe
+                      final groupCenterX = leftMargin + (index * (20.0 + spacingBetweenGroups)) + 10.0;
                       
-                      // Position Y du haut des barres (depuis le haut du graphique)
-                      final incomeBarTop = topMargin + availableHeight - incomeBarHeight;
-                      final expenseBarTop = topMargin + availableHeight - expenseBarHeight;
+                      // Calculer la hauteur des barres en pixels (basé sur maxY)
+                      final incomeBarHeight = data.totalIncome > 0 
+                          ? (data.totalIncome / maxY) * availableHeight 
+                          : 0.0;
+                      final expenseBarHeight = data.totalExpenses > 0 
+                          ? (data.totalExpenses / maxY) * availableHeight 
+                          : 0.0;
+                      
+                      // Position Y du bas des barres
+                      final barBottomY = topMargin + availableHeight;
+                      final incomeBarTopY = barBottomY - incomeBarHeight;
+                      final expenseBarTopY = barBottomY - expenseBarHeight;
                       
                       return Stack(
                         children: [
-                          // Valeur au-dessus de la barre revenus (barre gauche)
+                          // Valeur revenus - TOUJOURS visible
                           if (data.totalIncome > 0)
                             Positioned(
-                              left: groupCenterX - 24,
-                              top: incomeBarTop - 18,
-                              child: Text(
-                                _formatCurrency(data.totalIncome),
-                                style: GoogleFonts.poppins(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppTheme.incomeColor,
+                              left: groupCenterX - 35,
+                              top: incomeBarHeight > 25 
+                                  ? incomeBarTopY - 20  // Au-dessus
+                                  : barBottomY + 6,      // En dessous avec plus d'espace
+                              child: Container(
+                                constraints: const BoxConstraints(maxWidth: 50),
+                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(4),
+                                  border: Border.all(
+                                    color: AppTheme.incomeColor,
+                                    width: 1.5,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.2),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: Text(
+                                  _formatCurrency(data.totalIncome),
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppTheme.incomeColor,
+                                    height: 1.0,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
                             ),
-                          // Valeur au-dessus de la barre dépenses (barre droite)
+                          // Valeur dépenses - TOUJOURS visible
                           if (data.totalExpenses > 0)
                             Positioned(
-                              left: groupCenterX + 4,
-                              top: expenseBarTop - 18,
-                              child: Text(
-                                _formatCurrency(data.totalExpenses),
-                                style: GoogleFonts.poppins(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppTheme.expenseColor,
+                              left: groupCenterX + 8,
+                              top: expenseBarHeight > 25 
+                                  ? expenseBarTopY - 20  // Au-dessus
+                                  : barBottomY + 6,      // En dessous avec plus d'espace
+                              child: Container(
+                                constraints: const BoxConstraints(maxWidth: 50),
+                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(4),
+                                  border: Border.all(
+                                    color: AppTheme.expenseColor,
+                                    width: 1.5,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.2),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: Text(
+                                  _formatCurrency(data.totalExpenses),
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppTheme.expenseColor,
+                                    height: 1.0,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
                             ),
@@ -295,7 +365,77 @@ class BarChartWidget extends StatelessWidget {
       max = max > data.totalIncome ? max : data.totalIncome;
       max = max > data.totalExpenses ? max : data.totalExpenses;
     }
-    return (max * 1.2).ceilToDouble(); // Ajouter 20% de marge
+    // Si max est 0, retourner une valeur par défaut
+    if (max == 0) return 1000;
+    
+    // Ajouter seulement 10% de marge pour éviter d'écraser les petites valeurs
+    final maxWithMargin = max * 1.1;
+    
+    // Arrondir à un intervalle simple et proche
+    return _roundToSimpleMax(maxWithMargin);
+  }
+
+  /// Arrondit maxY à une valeur simple et proche
+  double _roundToSimpleMax(double value) {
+    if (value <= 0) return 1000;
+    
+    final ln10 = math.log(10);
+    final magnitude = (math.log(value) / ln10).floor();
+    final powerOf10 = math.pow(10, magnitude).toDouble();
+    final normalized = value / powerOf10;
+    
+    // Arrondir vers le haut à 1, 1.2, 1.5, 2, 3, 5, ou 10
+    double rounded;
+    if (normalized <= 1) {
+      rounded = 1;
+    } else if (normalized <= 1.2) {
+      rounded = 1.2;
+    } else if (normalized <= 1.5) {
+      rounded = 1.5;
+    } else if (normalized <= 2) {
+      rounded = 2;
+    } else if (normalized <= 3) {
+      rounded = 3;
+    } else if (normalized <= 5) {
+      rounded = 5;
+    } else {
+      rounded = 10;
+    }
+    
+    return rounded * powerOf10;
+  }
+
+  /// Arrondit une valeur à un intervalle "propre" pour l'affichage
+  /// Exemples : 1234 → 1500, 5678 → 6000, 12345 → 15000
+  double _roundToNiceInterval(double value) {
+    if (value <= 0) return 1000;
+    
+    // Calculer l'ordre de grandeur en utilisant log naturel
+    // log10(x) = ln(x) / ln(10)
+    final ln10 = math.log(10);
+    final magnitude = (math.log(value) / ln10).floor();
+    final powerOf10 = math.pow(10, magnitude).toDouble();
+    
+    // Normaliser la valeur (ex: 1234 → 1.234)
+    final normalized = value / powerOf10;
+    
+    // Arrondir à un intervalle "propre" mais plus proche (1, 1.5, 2, 3, 5, 10)
+    double rounded;
+    if (normalized <= 1) {
+      rounded = 1;
+    } else if (normalized <= 1.5) {
+      rounded = 1.5;
+    } else if (normalized <= 2) {
+      rounded = 2;
+    } else if (normalized <= 3) {
+      rounded = 3;
+    } else if (normalized <= 5) {
+      rounded = 5;
+    } else {
+      rounded = 10;
+    }
+    
+    return rounded * powerOf10;
   }
 
   String _formatMonth(String month) {
@@ -358,6 +498,40 @@ class BarChartWidget extends StatelessWidget {
       // Afficher un label sur cinq pour plus de 31 points
       return 5;
     }
+  }
+
+  /// Calcule l'intervalle optimal pour l'axe Y
+  /// Assure que les lignes de grille correspondent aux labels
+  double _getYAxisInterval() {
+    final maxY = _getMaxY();
+    // Diviser en 4-5 intervalles pour une meilleure lisibilité
+    final numIntervals = 4;
+    final rawInterval = maxY / numIntervals;
+    // Arrondir à un intervalle "propre" mais plus simple
+    return _roundToSimpleInterval(rawInterval);
+  }
+
+  /// Arrondit à un intervalle simple (1, 2, 5, 10, 20, 50, 100, etc.)
+  double _roundToSimpleInterval(double value) {
+    if (value <= 0) return 1;
+    
+    final ln10 = math.log(10);
+    final magnitude = (math.log(value) / ln10).floor();
+    final powerOf10 = math.pow(10, magnitude).toDouble();
+    final normalized = value / powerOf10;
+    
+    double rounded;
+    if (normalized <= 1) {
+      rounded = 1;
+    } else if (normalized <= 2) {
+      rounded = 2;
+    } else if (normalized <= 5) {
+      rounded = 5;
+    } else {
+      rounded = 10;
+    }
+    
+    return rounded * powerOf10;
   }
 
   String _formatCurrency(double value) {

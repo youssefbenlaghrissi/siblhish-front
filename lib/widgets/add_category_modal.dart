@@ -249,7 +249,7 @@ class _AddCategoryModalState extends State<AddCategoryModal> {
                       onPressed: _submit,
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
-                        backgroundColor: AppTheme.primaryColor,
+                        backgroundColor: AppTheme.incomeColor,
                       ),
                       child: Text(
                         'Créer la catégorie',

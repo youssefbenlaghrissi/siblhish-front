@@ -388,7 +388,7 @@ class _AddBudgetModalState extends State<AddBudgetModal> {
                       onPressed: _isSubmitting ? null : _submit,
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
-                        backgroundColor: AppTheme.primaryColor,
+                        backgroundColor: AppTheme.incomeColor,
                         foregroundColor: Colors.white,
                         disabledBackgroundColor: Colors.grey[300],
                       ),

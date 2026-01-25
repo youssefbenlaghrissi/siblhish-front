@@ -65,6 +65,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     if (widget.isVisible) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && widget.isVisible) {
+          // Marquer TransactionsScreen comme actif
+          context.read<BudgetProvider>().setActiveScreen('transactions');
           _loadTransactions();
         }
       });
@@ -78,6 +80,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     if (widget.isVisible && !oldWidget.isVisible && !_isLoading) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && widget.isVisible && !_isLoading) {
+          // Marquer TransactionsScreen comme actif
+          context.read<BudgetProvider>().setActiveScreen('transactions');
           _loadTransactions();
         }
       });

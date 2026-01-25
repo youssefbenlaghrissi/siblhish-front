@@ -36,6 +36,17 @@ class BudgetProvider extends ChangeNotifier {
   final List<ScheduledPayment> _scheduledPayments = [];
   final List<dynamic> _homeRecentTransactions = []; // Transactions récentes pour la page d'accueil
   final List<dynamic> _filteredTransactions = []; // Transactions filtrées pour l'écran Transactions
+  
+  // Derniers filtres utilisés pour recharger les transactions filtrées après modification
+  Map<String, dynamic>? _lastFilteredTransactionsParams;
+  
+  // Écran actif : 'home' ou 'transactions' ou null
+  String? _activeScreen;
+  
+  // Méthode pour mettre à jour l'écran actif (appelée quand l'écran devient visible)
+  void setActiveScreen(String? screen) {
+    _activeScreen = screen;
+  }
 
   // Données statistiques
   List<MonthlySummary> _monthlySummary = [];
@@ -154,6 +165,12 @@ class BudgetProvider extends ChangeNotifier {
       _isLoading = false;
       // OPTIMISATION : Un seul notifyListeners() à la fin
       notifyListeners();
+      
+      // Charger les catégories en arrière-plan pour éviter "Catégorie inconnue"
+      loadCategoriesIfNeeded().catchError((error) {
+        // Ignorer les erreurs de chargement des catégories en arrière-plan
+        // Elles seront chargées à la demande si nécessaire
+      });
     } catch (e) {
       _error = e.toString();
       _isLoading = false;
@@ -345,6 +362,8 @@ class BudgetProvider extends ChangeNotifier {
     _isLoadingHomeData = true;
     final userId = _currentUser!.id;
     try {
+      // Marquer HomeScreen comme actif
+      _activeScreen = 'home';
       
       // OPTIMISATION : Charger TOUT en parallèle pour maximiser la vitesse
       await Future.wait([
@@ -400,6 +419,20 @@ class BudgetProvider extends ChangeNotifier {
   }) async {
     if (_currentUser == null) return;
     
+    // Marquer TransactionsScreen comme actif
+    _activeScreen = 'transactions';
+    
+    // Stocker les paramètres pour pouvoir recharger après modification
+    _lastFilteredTransactionsParams = {
+      'limit': limit,
+      'type': type,
+      'dateRange': dateRange,
+      'startDate': startDate,
+      'endDate': endDate,
+      'minAmount': minAmount,
+      'maxAmount': maxAmount,
+    };
+    
     final userId = _currentUser!.id;
     try {
       
@@ -423,6 +456,64 @@ class BudgetProvider extends ChangeNotifier {
       notifyListeners();
       rethrow;
     }
+  }
+  
+  // Recharger les transactions filtrées avec les derniers paramètres utilisés
+  Future<void> reloadFilteredTransactions() async {
+    if (_lastFilteredTransactionsParams != null) {
+      await loadFilteredTransactions(
+        limit: _lastFilteredTransactionsParams!['limit'] ?? 2147483647,
+        type: _lastFilteredTransactionsParams!['type'],
+        dateRange: _lastFilteredTransactionsParams!['dateRange'],
+        startDate: _lastFilteredTransactionsParams!['startDate'],
+        endDate: _lastFilteredTransactionsParams!['endDate'],
+        minAmount: _lastFilteredTransactionsParams!['minAmount'],
+        maxAmount: _lastFilteredTransactionsParams!['maxAmount'],
+      );
+    } else if (_filteredTransactions.isNotEmpty) {
+      // Si on a des transactions filtrées mais pas de paramètres stockés, recharger toutes les transactions
+      await loadFilteredTransactions();
+    }
+  }
+
+  // Méthode centralisée pour recharger les données selon l'écran actif
+  // Retourne une liste de futures à exécuter en parallèle
+  List<Future<void>> _getReloadFuturesForActiveScreen(String userId) {
+    final futures = <Future<void>>[];
+    
+    switch (_activeScreen) {
+      case 'transactions':
+        // TransactionsScreen actif : recharger uniquement les transactions filtrées
+        if (_filteredTransactions.isNotEmpty) {
+          futures.add(reloadFilteredTransactions());
+        }
+        break;
+        
+      case 'home':
+        // HomeScreen actif : recharger balance et transactions récentes
+        if (_balanceData != null) {
+          futures.add(_loadBalance(userId));
+        }
+        if (_homeRecentTransactions.isNotEmpty) {
+          futures.add(loadRecentTransactions(limit: 3));
+        }
+        break;
+        
+      default:
+        // Écran actif inconnu : recharger les deux si chargés (fallback)
+        if (_filteredTransactions.isNotEmpty) {
+          futures.add(reloadFilteredTransactions());
+        }
+        if (_balanceData != null) {
+          futures.add(_loadBalance(userId));
+        }
+        if (_homeRecentTransactions.isNotEmpty) {
+          futures.add(loadRecentTransactions(limit: 3));
+        }
+        break;
+    }
+    
+    return futures;
   }
 
   // Charger les objectifs à la demande (lazy loading)
@@ -501,8 +592,10 @@ class BudgetProvider extends ChangeNotifier {
 
   // Vérifier si on a besoin de la liste complète des dépenses
   bool _needsExpensesList(List<String> cardIds) {
-    // transactionCountCard (id=8) et topExpenseCard (id=6) ont besoin de toutes les dépenses
-    final needs = cardIds.contains('8') || 
+    // barChart (id=1), transactionCountCard (id=8) et topExpenseCard (id=6) ont besoin de toutes les dépenses
+    final needs = cardIds.contains('1') || 
+                  cardIds.contains('bar_chart') ||
+                  cardIds.contains('8') || 
                   cardIds.contains('transaction_count_card') ||
                   cardIds.contains('6') ||
                   cardIds.contains('top_expense_card');
@@ -511,8 +604,11 @@ class BudgetProvider extends ChangeNotifier {
 
   // Vérifier si on a besoin de la liste complète des revenus
   bool _needsIncomesList(List<String> cardIds) {
-    // transactionCountCard (id=8) a besoin de tous les revenus
-    return cardIds.contains('8') || cardIds.contains('transaction_count_card');
+    // barChart (id=1) et transactionCountCard (id=8) ont besoin de tous les revenus
+    return cardIds.contains('1') || 
+           cardIds.contains('bar_chart') ||
+           cardIds.contains('8') || 
+           cardIds.contains('transaction_count_card');
   }
 
   // Vérifier si on a besoin du balance
@@ -847,19 +943,18 @@ class BudgetProvider extends ChangeNotifier {
       final expenseData = expense.toJson();
       final createdExpense = await ExpenseService.createExpense(expenseData);
       
-      // Recharger toutes les données nécessaires : balance, transactions récentes et liste complète des dépenses
+      // Recharger seulement les données déjà chargées selon l'écran actif
       final userId = _currentUser!.id;
-      final futures = <Future>[
-        _loadBalance(userId),
-        loadRecentTransactions(limit: 3), // Toujours limit=3 pour la page d'accueil
-      ];
+      final futures = _getReloadFuturesForActiveScreen(userId);
       
-      // Recharger la liste complète des dépenses si elle est déjà chargée
+      // StatisticsScreen : recharger la liste complète des dépenses si elle est déjà chargée
       if (_expenses.isNotEmpty) {
         futures.add(_loadExpenses(userId));
       }
       
-      await Future.wait(futures);
+      if (futures.isNotEmpty) {
+        await Future.wait(futures);
+      }
       // OPTIMISATION : Un seul notifyListeners() après tous les chargements
       notifyListeners();
     } catch (e) {
@@ -874,17 +969,16 @@ class BudgetProvider extends ChangeNotifier {
       await ExpenseService.deleteExpense(id);
       if (_currentUser != null) {
         final userId = _currentUser!.id;
-        final futures = <Future>[
-          _loadBalance(userId),
-          loadRecentTransactions(limit: 3), // Toujours limit=3 pour la page d'accueil
-        ];
+        final futures = _getReloadFuturesForActiveScreen(userId);
         
-        // Recharger la liste complète des dépenses si elle est déjà chargée
+        // StatisticsScreen : recharger la liste complète des dépenses si elle est déjà chargée
         if (_expenses.isNotEmpty) {
           futures.add(_loadExpenses(userId));
         }
         
-        await Future.wait(futures);
+        if (futures.isNotEmpty) {
+          await Future.wait(futures);
+        }
         // OPTIMISATION : Un seul notifyListeners() après tous les chargements
         notifyListeners();
       }
@@ -901,17 +995,16 @@ class BudgetProvider extends ChangeNotifier {
       await ExpenseService.updateExpense(expense.id, expenseData);
       if (_currentUser != null) {
         final userId = _currentUser!.id;
-        final futures = <Future>[
-          _loadBalance(userId),
-          loadRecentTransactions(limit: 3), // Toujours limit=3 pour la page d'accueil
-        ];
+        final futures = _getReloadFuturesForActiveScreen(userId);
         
-        // Recharger la liste complète des dépenses si elle est déjà chargée
+        // StatisticsScreen : recharger la liste complète des dépenses si elle est déjà chargée
         if (_expenses.isNotEmpty) {
           futures.add(_loadExpenses(userId));
         }
         
-        await Future.wait(futures);
+        if (futures.isNotEmpty) {
+          await Future.wait(futures);
+        }
         // OPTIMISATION : Un seul notifyListeners() après tous les chargements
         notifyListeners();
       }
@@ -932,19 +1025,18 @@ class BudgetProvider extends ChangeNotifier {
       final incomeData = income.toJson();
       await IncomeService.createIncome(incomeData);
       
-      // Recharger toutes les données nécessaires : balance, transactions récentes et liste complète des revenus
+      // Recharger seulement les données déjà chargées selon l'écran actif
       final userId = _currentUser!.id;
-      final futures = <Future>[
-        _loadBalance(userId),
-        loadRecentTransactions(limit: 3), // Toujours limit=3 pour la page d'accueil
-      ];
+      final futures = _getReloadFuturesForActiveScreen(userId);
       
-      // Recharger la liste complète des revenus si elle est déjà chargée
+      // StatisticsScreen : recharger la liste complète des revenus si elle est déjà chargée
       if (_incomes.isNotEmpty) {
         futures.add(_loadIncomes(userId));
       }
       
-      await Future.wait(futures);
+      if (futures.isNotEmpty) {
+        await Future.wait(futures);
+      }
       // OPTIMISATION : Un seul notifyListeners() après tous les chargements
       notifyListeners();
     } catch (e) {
@@ -959,17 +1051,16 @@ class BudgetProvider extends ChangeNotifier {
       await IncomeService.deleteIncome(id);
       if (_currentUser != null) {
         final userId = _currentUser!.id;
-        final futures = <Future>[
-          _loadBalance(userId),
-          loadRecentTransactions(limit: 3), // Toujours limit=3 pour la page d'accueil
-        ];
+        final futures = _getReloadFuturesForActiveScreen(userId);
         
-        // Recharger la liste complète des revenus si elle est déjà chargée
+        // StatisticsScreen : recharger la liste complète des revenus si elle est déjà chargée
         if (_incomes.isNotEmpty) {
           futures.add(_loadIncomes(userId));
         }
         
-        await Future.wait(futures);
+        if (futures.isNotEmpty) {
+          await Future.wait(futures);
+        }
         // OPTIMISATION : Un seul notifyListeners() après tous les chargements
         notifyListeners();
       }
@@ -986,17 +1077,16 @@ class BudgetProvider extends ChangeNotifier {
       await IncomeService.updateIncome(income.id, incomeData);
       if (_currentUser != null) {
         final userId = _currentUser!.id;
-        final futures = <Future>[
-          _loadBalance(userId),
-          loadRecentTransactions(limit: 3), // Toujours limit=3 pour la page d'accueil
-        ];
+        final futures = _getReloadFuturesForActiveScreen(userId);
         
-        // Recharger la liste complète des revenus si elle est déjà chargée
+        // StatisticsScreen : recharger la liste complète des revenus si elle est déjà chargée
         if (_incomes.isNotEmpty) {
           futures.add(_loadIncomes(userId));
         }
         
-        await Future.wait(futures);
+        if (futures.isNotEmpty) {
+          await Future.wait(futures);
+        }
         // OPTIMISATION : Un seul notifyListeners() après tous les chargements
         notifyListeners();
       }
@@ -1264,6 +1354,13 @@ class BudgetProvider extends ChangeNotifier {
 
   Future<void> updateGoal(Goal goal) async {
     try {
+      // Vérifier que le montant actuel ne dépasse pas le montant cible
+      if (goal.currentAmount > goal.targetAmount) {
+        throw Exception(
+          'Le montant actuel (${goal.currentAmount.toStringAsFixed(2)} MAD) ne peut pas dépasser le montant cible (${goal.targetAmount.toStringAsFixed(2)} MAD)',
+        );
+      }
+      
       // GoalRequestDto : userId, name, description, targetAmount, currentAmount, targetDate, categoryId
       final goalData = {
         'userId': int.tryParse(goal.userId) ?? goal.userId,
@@ -1318,15 +1415,54 @@ class BudgetProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> achieveGoal(String goalId) async {
+  Future<Goal> achieveGoal(String goalId, {DateTime? achievedDate}) async {
     try {
-      await GoalService.achieveGoal(goalId);
+      // Récupérer l'objectif actuel pour avoir tous les champs
+      final currentGoal = goals.firstWhere((g) => g.id == goalId);
+      
+      // Vérifier que le montant actuel ne dépasse pas le montant cible
+      if (currentGoal.currentAmount > currentGoal.targetAmount) {
+        throw Exception(
+          'Le montant actuel (${currentGoal.currentAmount.toStringAsFixed(2)} MAD) ne peut pas dépasser le montant cible (${currentGoal.targetAmount.toStringAsFixed(2)} MAD)',
+        );
+      }
+      
+      // Créer un objectif mis à jour avec isAchieved = true
+      final updatedGoal = Goal(
+        id: currentGoal.id,
+        name: currentGoal.name,
+        description: currentGoal.description,
+        targetAmount: currentGoal.targetAmount,
+        currentAmount: currentGoal.currentAmount,
+        targetDate: currentGoal.targetDate,
+        userId: currentGoal.userId,
+        categoryId: currentGoal.categoryId,
+        isAchieved: true, // Marquer comme atteint
+        achievedDate: achievedDate ?? currentGoal.achievedDate,
+      );
+      
+      // Utiliser updateGoal pour mettre à jour avec tous les champs
+      final goalData = {
+        'userId': int.tryParse(updatedGoal.userId) ?? updatedGoal.userId,
+        'name': updatedGoal.name,
+        'description': updatedGoal.description,
+        'targetAmount': updatedGoal.targetAmount,
+        'currentAmount': updatedGoal.currentAmount,
+        'targetDate': updatedGoal.targetDate?.toIso8601String().split('T')[0],
+        'categoryId': updatedGoal.categoryId != null ? (int.tryParse(updatedGoal.categoryId!) ?? updatedGoal.categoryId) : null,
+        'isAchieved': true, // ⚠️ IMPORTANT : Indiquer que l'objectif est atteint
+        if (achievedDate != null) 'achievedDate': achievedDate.toIso8601String().split('.')[0], // Envoyer la date/heure sélectionnée (format: 2026-01-02T03:13:00)
+      };
+      
+      final achievedGoal = await GoalService.updateGoal(goalId, goalData);
+      
       if (_currentUser != null) {
         final userId = _currentUser!.id;
         // Recharger la liste complète des goals pour mettre à jour l'affichage
         await _loadGoals(userId);
         notifyListeners();
       }
+      return achievedGoal;
     } catch (e) {
       _error = e.toString();
       notifyListeners();

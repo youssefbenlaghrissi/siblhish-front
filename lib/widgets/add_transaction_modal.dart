@@ -246,6 +246,7 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
               padding: const EdgeInsets.all(20),
               child: Form(
                 key: _formKey,
+                autovalidateMode: AutovalidateMode.disabled,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -253,7 +254,7 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
                     TextFormField(
                       controller: _amountController,
                       decoration: const InputDecoration(
-                        labelText: 'Montant',
+                        labelText: 'Montant *',
                         prefixText: 'MAD ',
                         prefixIcon: Icon(Icons.attach_money_rounded),
                       ),
@@ -278,10 +279,10 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
                                 provider.categories.any((cat) => cat.id == _selectedCategoryId)
                             ? _selectedCategoryId
                             : null,
-                        decoration: const InputDecoration(
-                          labelText: 'Catégorie',
-                          prefixIcon: Icon(Icons.category_rounded),
-                        ),
+                      decoration: const InputDecoration(
+                        labelText: 'Catégorie *',
+                        prefixIcon: Icon(Icons.category_rounded),
+                      ),
                         items: provider.categories
                             .map<DropdownMenuItem<String>>((Category category) {
                           return DropdownMenuItem<String>(
@@ -422,7 +423,7 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
                       DropdownButtonFormField<String>(
                         value: _recurrenceFrequency,
                         decoration: const InputDecoration(
-                          labelText: 'Fréquence',
+                          labelText: 'Fréquence *',
                           prefixIcon: Icon(Icons.repeat_rounded),
                         ),
                         items: const [
@@ -483,9 +484,7 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
                       onPressed: _isSubmitting ? null : _submit,
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
-                        backgroundColor: isIncome
-                            ? AppTheme.incomeColor
-                            : AppTheme.expenseColor,
+                        backgroundColor: AppTheme.incomeColor,
                         disabledBackgroundColor: Colors.grey[300],
                       ),
                       child: _isSubmitting

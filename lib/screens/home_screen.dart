@@ -50,6 +50,8 @@ class _HomeScreenState extends State<HomeScreen> {
     super.didUpdateWidget(oldWidget);
     // Si l'écran vient de devenir visible, charger les données
     if (widget.isVisible && !oldWidget.isVisible) {
+      // Marquer HomeScreen comme actif
+      context.read<BudgetProvider>().setActiveScreen('home');
       _homeDataLoadScheduled = false; // Réinitialiser le flag
       _loadHomeDataIfNeeded();
       _loadUnreadCount();
@@ -68,6 +70,8 @@ class _HomeScreenState extends State<HomeScreen> {
     if (widget.isVisible) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && widget.isVisible) {
+          // Marquer HomeScreen comme actif
+          context.read<BudgetProvider>().setActiveScreen('home');
           _loadHomeDataIfNeeded();
           _loadUnreadCount();
           _startPeriodicNotificationCheck();

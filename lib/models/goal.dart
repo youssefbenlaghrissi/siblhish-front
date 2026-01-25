@@ -9,6 +9,7 @@ class Goal {
   final String userId;
   final String? categoryId;
   final bool isAchieved;
+  final DateTime? achievedDate; // Date et heure d'atteinte de l'objectif
 
   Goal({
     required this.id,
@@ -20,6 +21,7 @@ class Goal {
     required this.userId,
     this.categoryId,
     this.isAchieved = false,
+    this.achievedDate,
   });
 
   double get progress => targetAmount > 0 ? (currentAmount / targetAmount).clamp(0.0, 1.0) : 0.0;
@@ -46,6 +48,17 @@ class Goal {
       catId = json['categoryId'].toString();
     }
 
+    // Parser achievedDate avec gestion d'erreur
+    DateTime? achievedDate;
+    if (json['achievedDate'] != null) {
+      try {
+        achievedDate = DateTime.parse(json['achievedDate'] as String);
+      } catch (e) {
+        // Si le parsing échoue, laisser null (l'objectif sera affiché sans date d'atteinte)
+        achievedDate = null;
+      }
+    }
+
     return Goal(
       id: json['id'].toString(),
       name: json['name'],
@@ -56,6 +69,7 @@ class Goal {
       userId: json['userId'].toString(),
       categoryId: catId,
       isAchieved: json['isAchieved'] ?? false,
+      achievedDate: achievedDate,
     );
   }
 }

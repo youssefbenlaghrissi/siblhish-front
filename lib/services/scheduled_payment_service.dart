@@ -27,8 +27,6 @@ class ScheduledPaymentService {
       String paymentId, Map<String, dynamic> paymentData) async {
     final response = await ApiService.put('/scheduled-payments/$paymentId', paymentData);
     final data = response['data'] as Map<String, dynamic>;
-    debugPrint('   Date reçue: ${data['dueDate']}');
-    debugPrint('   Données complètes: $data');
     return ScheduledPayment.fromJson(data);
   }
 

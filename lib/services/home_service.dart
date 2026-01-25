@@ -113,16 +113,22 @@ class HomeService {
             );
           }
           
-          // OPTIMISATION : Utiliser timestamp si disponible (évite le parsing de string)
+          // Parser la date en heure locale (le backend envoie la date en heure locale)
           DateTime transactionDate;
-          if (jsonMap['dateTimestamp'] != null) {
-            // ✅ Utiliser timestamp (plus rapide que DateTime.parse)
-            transactionDate = DateTime.fromMillisecondsSinceEpoch(
-              jsonMap['dateTimestamp'] as int
+          if (jsonMap['date'] != null) {
+            // ✅ Utiliser la string date qui est en heure locale (évite les problèmes de timezone)
+            final dateString = jsonMap['date'] as String;
+            // Parser la date et créer un DateTime local (sans timezone)
+            final parsed = DateTime.parse(dateString);
+            // Créer un DateTime local à partir des composants (évite la conversion UTC)
+            transactionDate = DateTime(
+              parsed.year,
+              parsed.month,
+              parsed.day,
+              parsed.hour,
+              parsed.minute,
+              parsed.second,
             );
-          } else if (jsonMap['date'] != null) {
-            // Fallback : parser la string (ancien format pour compatibilité)
-            transactionDate = DateTime.parse(jsonMap['date'] as String);
           } else {
             continue;
           }
@@ -139,16 +145,22 @@ class HomeService {
             category: category,
           ));
         } else {
-          // OPTIMISATION : Utiliser timestamp si disponible (évite le parsing de string)
+          // Parser la date en heure locale (le backend envoie la date en heure locale)
           DateTime transactionDate;
-          if (jsonMap['dateTimestamp'] != null) {
-            // ✅ Utiliser timestamp (plus rapide que DateTime.parse)
-            transactionDate = DateTime.fromMillisecondsSinceEpoch(
-              jsonMap['dateTimestamp'] as int
+          if (jsonMap['date'] != null) {
+            // ✅ Utiliser la string date qui est en heure locale (évite les problèmes de timezone)
+            final dateString = jsonMap['date'] as String;
+            // Parser la date et créer un DateTime local (sans timezone)
+            final parsed = DateTime.parse(dateString);
+            // Créer un DateTime local à partir des composants (évite la conversion UTC)
+            transactionDate = DateTime(
+              parsed.year,
+              parsed.month,
+              parsed.day,
+              parsed.hour,
+              parsed.minute,
+              parsed.second,
             );
-          } else if (jsonMap['date'] != null) {
-            // Fallback : parser la string (ancien format pour compatibilité)
-            transactionDate = DateTime.parse(jsonMap['date'] as String);
           } else {
             continue;
           }

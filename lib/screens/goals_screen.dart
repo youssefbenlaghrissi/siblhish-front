@@ -13,6 +13,7 @@ import '../widgets/add_goal_modal.dart';
 import '../widgets/edit_goal_modal.dart';
 import '../widgets/skeleton_loader.dart';
 import '../widgets/custom_snackbar.dart';
+import '../utils/date_formatter.dart';
 
 class GoalsScreen extends StatefulWidget {
   final bool isVisible;
@@ -613,30 +614,102 @@ class _GoalCard extends StatelessWidget {
           if (goal.targetDate != null) ...[
             const SizedBox(height: 12),
             Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Icon(
-                  Icons.calendar_today_rounded,
-                  size: 14,
-                  color: AppTheme.textSecondary,
+                Row(
+                  children: [
+                    Icon(
+                      Icons.calendar_today_rounded,
+                      size: 14,
+                      color: AppTheme.textSecondary,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Objectif: ${DateFormat('dd MMM yyyy', 'fr').format(goal.targetDate!)}',
+                      style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        color: AppTheme.textSecondary,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 4),
-                Text(
-                  'Objectif: ${DateFormat('dd MMM yyyy', 'fr').format(goal.targetDate!)}',
-                  style: GoogleFonts.poppins(
-                    fontSize: 12,
-                    color: AppTheme.textSecondary,
+                // Icônes modifier et supprimer à droite (seulement pour les objectifs non atteints)
+                if (!isAchieved)
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.edit_rounded, size: 20),
+                        color: AppTheme.textSecondary,
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        onPressed: () {
+                          showModalBottomSheet(
+                            context: context,
+                            isScrollControlled: true,
+                            backgroundColor: Colors.transparent,
+                            builder: (context) => EditGoalModal(goal: goal),
+                          );
+                        },
+                      ),
+                      const SizedBox(width: 4),
+                      IconButton(
+                        icon: const Icon(Icons.delete_rounded, size: 20),
+                        color: AppTheme.expenseColor,
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        onPressed: () => _showDeleteConfirmationDialog(context, goal, provider),
+                      ),
+                    ],
                   ),
-                ),
               ],
             ),
           ],
           const SizedBox(height: 12),
-          Wrap(
-            alignment: WrapAlignment.end,
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              if (!isAchieved) ...[
+          // Ligne d'actions pour les objectifs atteints
+          if (isAchieved && goal.achievedDate != null)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Expanded(
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.check_circle_rounded,
+                        size: 14,
+                        color: Colors.green,
+                      ),
+                      const SizedBox(width: 4),
+                      Flexible(
+                        child: Text(
+                          'Atteint le ${DateFormatter.formatDate(goal.achievedDate!)} à ${DateFormat('HH:mm', 'fr').format(goal.achievedDate!)}',
+                          style: GoogleFonts.poppins(
+                            fontSize: 12,
+                            color: Colors.green,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete_rounded, size: 20),
+                  color: AppTheme.expenseColor,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  onPressed: () => _showDeleteConfirmationDialog(context, goal, provider),
+                ),
+              ],
+            )
+          else if (!isAchieved)
+            // Ligne avec boutons "Ajouter" et "Marquer atteint" centrés
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
                 TextButton.icon(
                   onPressed: () {
                     // Add amount to goal
@@ -646,8 +719,12 @@ class _GoalCard extends StatelessWidget {
                   label: const Text('Ajouter'),
                   style: TextButton.styleFrom(
                     foregroundColor: AppTheme.primaryColor,
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
                 ),
+                const SizedBox(width: 8),
                 TextButton.icon(
                   onPressed: () {
                     // Mark goal as achieved
@@ -657,28 +734,13 @@ class _GoalCard extends StatelessWidget {
                   label: const Text('Marquer atteint'),
                   style: TextButton.styleFrom(
                     foregroundColor: Colors.green,
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
                 ),
               ],
-              IconButton(
-                icon: const Icon(Icons.edit_rounded, size: 20),
-                color: AppTheme.textSecondary,
-                onPressed: () {
-                  showModalBottomSheet(
-                    context: context,
-                    isScrollControlled: true,
-                    backgroundColor: Colors.transparent,
-                    builder: (context) => EditGoalModal(goal: goal),
-                  );
-                },
-              ),
-              IconButton(
-                icon: const Icon(Icons.delete_rounded, size: 20),
-                color: AppTheme.expenseColor,
-                onPressed: () => _showDeleteConfirmationDialog(context, goal, provider),
-              ),
-            ],
-          ),
+            ),
         ],
       ),
     );
@@ -696,81 +758,133 @@ class _GoalCard extends StatelessWidget {
   void _showAddAmountDialog(BuildContext context, Goal goal, BudgetProvider provider) {
     final amountController = TextEditingController();
     bool isAdding = false;
+    String? errorMessage;
     
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: Text(
-            'Ajouter à l\'objectif',
-            style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
-          ),
-          content: TextField(
-            controller: amountController,
-            keyboardType: TextInputType.number,
-            enabled: !isAdding,
-            decoration: const InputDecoration(
-              labelText: 'Montant',
-              prefixText: 'MAD ',
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            title: Text(
+              'Ajouter à l\'objectif',
+              style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
             ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: isAdding ? null : () => Navigator.pop(context),
-              child: const Text('Annuler'),
-            ),
-            ElevatedButton(
-              onPressed: isAdding ? null : () async {
-                final amount = double.tryParse(amountController.text);
-                if (amount != null && amount > 0) {
-                  setDialogState(() {
-                    isAdding = true;
-                  });
-                  try {
-                    // Utiliser addAmountToGoal au lieu de updateGoal pour être cohérent avec l'API
-                    await provider.addAmountToGoal(goal.id, amount);
-                    if (context.mounted) {
-                      Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        CustomSnackBar.success(
-                          title: 'Montant ajouté avec succès',
-                          description: 'Le montant a été ajouté à votre objectif',
-                        ),
-                      );
-                    }
-                  } catch (e) {
-                    if (context.mounted) {
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  controller: amountController,
+                  keyboardType: TextInputType.number,
+                  enabled: !isAdding,
+                  decoration: const InputDecoration(
+                    labelText: 'Montant',
+                    prefixText: 'MAD ',
+                  ),
+                  onChanged: (value) {
+                    // Effacer l'erreur quand l'utilisateur modifie le montant
+                    if (errorMessage != null) {
                       setDialogState(() {
-                        isAdding = false;
+                        errorMessage = null;
                       });
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Erreur: ${e.toString()}'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
                     }
-                  }
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryColor,
-                foregroundColor: Colors.white,
-                disabledBackgroundColor: Colors.grey[300],
-              ),
-              child: isAdding
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                      ),
-                    )
-                  : const Text('Ajouter'),
+                  },
+                ),
+                if (errorMessage != null) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.red.withOpacity(0.3)),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.error_outline_rounded, color: Colors.red, size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            errorMessage!,
+                            style: GoogleFonts.poppins(
+                              fontSize: 13,
+                              color: Colors.red[700],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
             ),
-          ],
-        ),
+            actions: [
+              TextButton(
+                onPressed: isAdding ? null : () => Navigator.pop(context),
+                child: const Text('Annuler'),
+              ),
+              ElevatedButton(
+                onPressed: isAdding ? null : () async {
+                  final amount = double.tryParse(amountController.text);
+                  if (amount != null && amount > 0) {
+                    // Vérifier que le montant à ajouter ne dépasse pas le montant cible
+                    final remainingAmount = goal.targetAmount - goal.currentAmount;
+                    if (amount > remainingAmount) {
+                      setDialogState(() {
+                        errorMessage = 'Le montant à ajouter (${amount.toStringAsFixed(2)} MAD) dépasse le montant restant nécessaire (${remainingAmount.toStringAsFixed(2)} MAD) pour atteindre l\'objectif.';
+                      });
+                      return;
+                    }
+                    
+                    setDialogState(() {
+                      isAdding = true;
+                      errorMessage = null; // Effacer l'erreur précédente
+                    });
+                    try {
+                      // Utiliser addAmountToGoal au lieu de updateGoal pour être cohérent avec l'API
+                      await provider.addAmountToGoal(goal.id, amount);
+                      if (context.mounted) {
+                        Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          CustomSnackBar.success(
+                            title: 'Montant ajouté avec succès',
+                            description: 'Le montant a été ajouté à votre objectif',
+                          ),
+                        );
+                      }
+                    } catch (e) {
+                      if (context.mounted) {
+                        setDialogState(() {
+                          isAdding = false;
+                          errorMessage = 'Erreur: ${e.toString()}';
+                        });
+                      }
+                    }
+                  } else {
+                    setDialogState(() {
+                      errorMessage = 'Veuillez entrer un montant valide';
+                    });
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryColor,
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: Colors.grey[300],
+                ),
+                child: isAdding
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      )
+                    : const Text('Ajouter'),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -914,6 +1028,52 @@ class _AchieveConfirmationDialog extends StatefulWidget {
 
 class _AchieveConfirmationDialogState extends State<_AchieveConfirmationDialog> {
   bool _isAchieving = false;
+  late DateTime _selectedDateTime;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedDateTime = DateTime.now();
+  }
+
+  Future<void> _selectDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDateTime,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+    );
+    if (picked != null) {
+      setState(() {
+        // Préserver l'heure existante lors du changement de date
+        _selectedDateTime = DateTime(
+          picked.year,
+          picked.month,
+          picked.day,
+          _selectedDateTime.hour,
+          _selectedDateTime.minute,
+        );
+      });
+    }
+  }
+
+  Future<void> _selectTime() async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(_selectedDateTime),
+    );
+    if (picked != null) {
+      setState(() {
+        _selectedDateTime = DateTime(
+          _selectedDateTime.year,
+          _selectedDateTime.month,
+          _selectedDateTime.day,
+          picked.hour,
+          picked.minute,
+        );
+      });
+    }
+  }
 
   Future<void> _achieveGoal() async {
     setState(() {
@@ -921,9 +1081,12 @@ class _AchieveConfirmationDialogState extends State<_AchieveConfirmationDialog> 
     });
 
     try {
-      await widget.provider.achieveGoal(widget.goal.id);
+      await widget.provider.achieveGoal(
+        widget.goal.id,
+        achievedDate: _selectedDateTime,
+      );
       if (mounted) {
-        Navigator.pop(context); // Fermer le dialog de confirmation
+        Navigator.pop(context); // Fermer le dialog
         ScaffoldMessenger.of(context).showSnackBar(
           CustomSnackBar.success(
             title: 'Objectif marqué comme atteint',
@@ -948,12 +1111,16 @@ class _AchieveConfirmationDialogState extends State<_AchieveConfirmationDialog> 
 
   @override
   Widget build(BuildContext context) {
+    // Dialogue de confirmation avec sélecteur de date/heure
+    final dateFormatter = DateFormat('dd MMMM yyyy', 'fr');
+    final timeFormatter = DateFormat('HH:mm', 'fr');
+
     return AlertDialog(
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
       ),
       title: Text(
-        'Marquer comme atteint',
+        'Confirmer l\'atteinte',
         style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
       ),
       content: _isAchieving
@@ -968,9 +1135,80 @@ class _AchieveConfirmationDialogState extends State<_AchieveConfirmationDialog> 
                 ),
               ],
             )
-          : Text(
-              'Êtes-vous sûr de vouloir marquer l\'objectif "${widget.goal.name}" comme atteint ?',
-              style: GoogleFonts.poppins(),
+          : SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Marquer cet objectif comme atteint ?',
+                    style: GoogleFonts.poppins(),
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    'Date et heure d\'atteinte :',
+                    style: GoogleFonts.poppins(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey[700],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  // Date
+                  InkWell(
+                    onTap: _selectDate,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey[300]!),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.calendar_today_rounded, size: 20, color: Colors.grey[600]),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              dateFormatter.format(_selectedDateTime),
+                              style: GoogleFonts.poppins(
+                                fontSize: 15,
+                                color: Colors.black87,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  // Time
+                  InkWell(
+                    onTap: _selectTime,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey[300]!),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.access_time_rounded, size: 20, color: Colors.grey[600]),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              timeFormatter.format(_selectedDateTime),
+                              style: GoogleFonts.poppins(
+                                fontSize: 15,
+                                color: Colors.black87,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
       actions: _isAchieving
           ? []
@@ -991,7 +1229,7 @@ class _AchieveConfirmationDialogState extends State<_AchieveConfirmationDialog> 
                   ),
                 ),
                 child: Text(
-                  'Marquer atteint',
+                  'Confirmer',
                   style: GoogleFonts.poppins(color: Colors.white),
                 ),
               ),

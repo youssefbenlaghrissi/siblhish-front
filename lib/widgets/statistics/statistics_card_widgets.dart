@@ -8,6 +8,29 @@ import '../../models/expense.dart';
 import '../../providers/budget_provider.dart';
 import '../../theme/app_theme.dart';
 
+/// Fonction utilitaire centralisée pour formater la période analysée
+/// Retourne le libellé formaté de la période (ex: "Période analysée : janvier 2026")
+String formatPeriodLabel(String period, DateTime selectedDate) {
+  switch (period) {
+    case 'daily':
+      return 'Période analysée : ${DateFormat('d MMMM yyyy', 'fr').format(selectedDate)}';
+    case 'weekly':
+      final startOfWeek = selectedDate.subtract(Duration(days: selectedDate.weekday - 1));
+      final endOfWeek = startOfWeek.add(const Duration(days: 6));
+      String weekRange;
+      if (startOfWeek.month == endOfWeek.month && startOfWeek.year == endOfWeek.year) {
+        weekRange = '${startOfWeek.day}-${endOfWeek.day} ${DateFormat('MMMM yyyy', 'fr').format(startOfWeek)}';
+      } else {
+        weekRange = '${DateFormat('d MMM', 'fr').format(startOfWeek)} - ${DateFormat('d MMM yyyy', 'fr').format(endOfWeek)}';
+      }
+      return 'Période analysée : $weekRange';
+    case 'monthly':
+      return 'Période analysée : ${DateFormat('MMMM yyyy', 'fr').format(selectedDate)}';
+    default:
+      return 'Période analysée : ${DateFormat('MMMM yyyy', 'fr').format(selectedDate)}';
+  }
+}
+
 /// Widget pour la carte Solde Actuel
 class BalanceCardWidget extends StatelessWidget {
   final double balance;
@@ -40,25 +63,18 @@ class BalanceCardWidget extends StatelessWidget {
 /// Widget pour la carte Économies
 class SavingsCardWidget extends StatelessWidget {
   final double savings;
-  final String period; // "day", "month", ou "year"
+  final String period; // "daily", "weekly", "monthly"
+  final DateTime selectedDate; // Date sélectionnée pour formater la période
 
   const SavingsCardWidget({
     super.key,
     required this.savings,
-    this.period = 'month',
+    required this.period,
+    required this.selectedDate,
   });
 
-  String _getPeriodLabel(String period) {
-    switch (period) {
-      case 'day':
-        return 'Les 30 derniers jours';
-      case 'month':
-        return 'Les 12 derniers mois';
-      case 'year':
-        return 'Toutes les années';
-      default:
-        return 'Les 12 derniers mois';
-    }
+  String _getPeriodLabel(String period, DateTime selectedDate) {
+    return formatPeriodLabel(period, selectedDate);
   }
 
   @override
@@ -106,7 +122,7 @@ class SavingsCardWidget extends StatelessWidget {
                   size: 20,
                   color: Colors.blue,
                 ),
-                onPressed: () => _showSavingsInfoDialog(context, savings, period),
+                onPressed: () => _showSavingsInfoDialog(context, savings, period, selectedDate),
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
               ),
@@ -121,39 +137,36 @@ class SavingsCardWidget extends StatelessWidget {
               color: AppTheme.primaryColor,
             ),
           ),
+          const SizedBox(height: 12),
+          // Période analysée
+          Text(
+            _getPeriodLabel(period, selectedDate),
+            style: GoogleFonts.poppins(
+              fontSize: 13,
+              color: Colors.grey[600],
+              fontWeight: FontWeight.w500,
+            ),
+          ),
         ],
       ),
     );
   }
 
-  void _showSavingsInfoDialog(BuildContext context, double savings, String period) {
+  void _showSavingsInfoDialog(BuildContext context, double savings, String period, DateTime selectedDate) {
     final formatter = NumberFormat.currency(symbol: 'MAD ', decimalDigits: 0);
-    String periodLabel = '';
     String explanation = '';
     
     switch (period) {
       case 'daily':
-        periodLabel = 'Jour sélectionné';
         explanation = 'Cette valeur représente la somme totale des économies (balance) pour le jour sélectionné. Les économies sont calculées comme la différence entre les revenus et les dépenses pour cette journée.';
         break;
       case 'weekly':
-        periodLabel = 'Semaine sélectionnée';
         explanation = 'Cette valeur représente la somme totale des économies (balance) pour la semaine sélectionnée. Les économies sont calculées comme la différence entre les revenus et les dépenses pour chaque jour de la semaine, puis additionnées pour obtenir le total de la semaine.';
         break;
       case 'monthly':
-        periodLabel = 'Mois sélectionné';
         explanation = 'Cette valeur représente la somme totale des économies (balance) pour le mois sélectionné. Les économies sont calculées comme la différence entre les revenus et les dépenses pour chaque jour du mois, puis additionnées pour obtenir le total du mois.';
         break;
-      case '3months':
-        periodLabel = '3 derniers mois';
-        explanation = 'Cette valeur représente la somme totale des économies (balance) sur les 3 derniers mois. Les économies sont calculées comme la différence entre les revenus et les dépenses pour chaque mois, puis additionnées pour obtenir le total sur les 3 mois.';
-        break;
-      case '6months':
-        periodLabel = '6 derniers mois';
-        explanation = 'Cette valeur représente la somme totale des économies (balance) sur les 6 derniers mois. Les économies sont calculées comme la différence entre les revenus et les dépenses pour chaque mois, puis additionnées pour obtenir le total sur les 6 mois.';
-        break;
       default:
-        periodLabel = 'Période sélectionnée';
         explanation = 'Cette valeur représente la somme totale des économies (balance) sur la période sélectionnée. Les économies sont calculées comme la différence entre les revenus et les dépenses.';
     }
 
@@ -198,29 +211,13 @@ class SavingsCardWidget extends StatelessWidget {
               ),
               const SizedBox(height: 20),
               // Période analysée
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Période analysée :',
-                    style: GoogleFonts.poppins(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.grey[700],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      periodLabel,
-                      style: GoogleFonts.poppins(
-                        fontSize: 14,
-                        color: AppTheme.textPrimary,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ],
+              Text(
+                formatPeriodLabel(period, selectedDate),
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  color: AppTheme.textPrimary,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 20),
               // Valeur actuelle
@@ -283,7 +280,7 @@ class SavingsCardWidget extends StatelessWidget {
 /// Widget pour la carte Moyenne Dépenses
 class AverageExpenseCardWidget extends StatelessWidget {
   final double averageExpense;
-  final String period; // "daily", "weekly", "monthly", "3months", "6months"
+  final String period; // "daily", "weekly", "monthly"
   final int numberOfPeriods; // Nombre réel de périodes avec données
   final DateTime selectedDate; // Date sélectionnée pour formater la période
 
@@ -374,6 +371,16 @@ class AverageExpenseCardWidget extends StatelessWidget {
               color: AppTheme.expenseColor,
             ),
           ),
+          const SizedBox(height: 12),
+          // Période analysée
+          Text(
+            formatPeriodLabel(period, selectedDate),
+            style: GoogleFonts.poppins(
+              fontSize: 13,
+              color: Colors.grey[600],
+              fontWeight: FontWeight.w500,
+            ),
+          ),
         ],
       ),
     );
@@ -381,44 +388,19 @@ class AverageExpenseCardWidget extends StatelessWidget {
 
   void _showAverageExpenseInfoDialog(BuildContext context, double averageExpense, String period, int numberOfPeriods, DateTime selectedDate) {
     final formatter = NumberFormat.currency(symbol: 'MAD ', decimalDigits: 0);
-    String periodLabel = 'Période sélectionnée'; // Valeur par défaut
     String calculationExplanation = '';
     
     switch (period) {
       case 'daily':
-        periodLabel = 'Période sélectionnée : ${DateFormat('d MMMM yyyy', 'fr').format(selectedDate)}'; // Ex: "Période sélectionnée : 25 décembre 2025"
         calculationExplanation = 'Cette valeur représente le total des dépenses pour le jour sélectionné. Comme il s\'agit d\'un seul jour, la "moyenne" correspond au total des dépenses de cette journée.';
         break;
       case 'weekly':
-        final startOfWeek = selectedDate.subtract(Duration(days: selectedDate.weekday - 1));
-        final endOfWeek = startOfWeek.add(const Duration(days: 6));
-        String weekRange;
-        if (startOfWeek.month == endOfWeek.month && startOfWeek.year == endOfWeek.year) {
-          weekRange = '${startOfWeek.day}-${endOfWeek.day} ${DateFormat('MMMM yyyy', 'fr').format(startOfWeek)}'; // Ex: "22-28 décembre 2025"
-        } else {
-          weekRange = '${DateFormat('d MMM', 'fr').format(startOfWeek)} - ${DateFormat('d MMM yyyy', 'fr').format(endOfWeek)}'; // Ex: "29 déc. - 4 janv. 2026"
-        }
-        periodLabel = 'Période sélectionnée : $weekRange';
         calculationExplanation = 'La moyenne est calculée en divisant le total des dépenses de la semaine par le nombre réel de jours dans la semaine (7 jours). Cette moyenne représente vos dépenses quotidiennes moyennes sur la semaine.';
         break;
       case 'monthly':
-        periodLabel = 'Période sélectionnée : ${DateFormat('MMMM yyyy', 'fr').format(selectedDate)}'; // Ex: "Période sélectionnée : décembre 2025"
         calculationExplanation = 'La moyenne est calculée en divisant le total des dépenses du mois par le nombre réel de jours dans le mois (28 à 31 jours selon le mois). Cette moyenne représente vos dépenses quotidiennes moyennes sur le mois.';
         break;
-      case '3months':
-        final endDate = DateTime(selectedDate.year, selectedDate.month, selectedDate.day);
-        final startDate = DateTime(selectedDate.year, selectedDate.month - 2, 1);
-        periodLabel = 'Période sélectionnée : ${DateFormat('MMMM', 'fr').format(startDate)} - ${DateFormat('MMMM yyyy', 'fr').format(endDate)}'; // Ex: "Période sélectionnée : octobre - décembre 2025"
-        calculationExplanation = 'La moyenne est calculée en divisant le total des dépenses des 3 derniers mois par le nombre réel de mois dans la période (3 mois). Cette moyenne représente vos dépenses mensuelles moyennes sur les 3 derniers mois.';
-        break;
-      case '6months':
-        final endDate = DateTime(selectedDate.year, selectedDate.month, selectedDate.day);
-        final startDate = DateTime(selectedDate.year, selectedDate.month - 5, 1);
-        periodLabel = 'Période sélectionnée : ${DateFormat('MMMM', 'fr').format(startDate)} - ${DateFormat('MMMM yyyy', 'fr').format(endDate)}'; // Ex: "Période sélectionnée : juillet - décembre 2025"
-        calculationExplanation = 'La moyenne est calculée en divisant le total des dépenses des 6 derniers mois par le nombre réel de mois dans la période (6 mois). Cette moyenne représente vos dépenses mensuelles moyennes sur les 6 derniers mois.';
-        break;
       default:
-        periodLabel = 'Période sélectionnée';
         calculationExplanation = 'La moyenne est calculée en divisant le total des dépenses par le nombre réel de périodes dans la plage de dates sélectionnée.';
     }
 
@@ -464,7 +446,7 @@ class AverageExpenseCardWidget extends StatelessWidget {
               const SizedBox(height: 20),
               // Période analysée
               Text(
-                periodLabel,
+                formatPeriodLabel(period, selectedDate),
                 style: GoogleFonts.poppins(
                   fontSize: 16,
                   color: AppTheme.textPrimary,
@@ -748,7 +730,7 @@ class _TopExpenseCardWidgetState extends State<TopExpenseCardWidget> {
 /// Widget pour la carte Moyenne Revenus
 class AverageIncomeCardWidget extends StatelessWidget {
   final double averageIncome;
-  final String period; // "daily", "weekly", "monthly", "3months", "6months"
+  final String period; // "daily", "weekly", "monthly"
   final int numberOfPeriods; // Nombre réel de périodes avec données
   final DateTime selectedDate; // Date sélectionnée pour formater la période
 
@@ -839,6 +821,16 @@ class AverageIncomeCardWidget extends StatelessWidget {
               color: AppTheme.incomeColor,
             ),
           ),
+          const SizedBox(height: 12),
+          // Période analysée
+          Text(
+            formatPeriodLabel(period, selectedDate),
+            style: GoogleFonts.poppins(
+              fontSize: 13,
+              color: Colors.grey[600],
+              fontWeight: FontWeight.w500,
+            ),
+          ),
         ],
       ),
     );
@@ -846,44 +838,19 @@ class AverageIncomeCardWidget extends StatelessWidget {
 
   void _showAverageIncomeInfoDialog(BuildContext context, double averageIncome, String period, int numberOfPeriods, DateTime selectedDate) {
     final formatter = NumberFormat.currency(symbol: 'MAD ', decimalDigits: 0);
-    String periodLabel = 'Période sélectionnée'; // Valeur par défaut
     String calculationExplanation = '';
     
     switch (period) {
       case 'daily':
-        periodLabel = 'Période sélectionnée : ${DateFormat('d MMMM yyyy', 'fr').format(selectedDate)}'; // Ex: "Période sélectionnée : 25 décembre 2025"
         calculationExplanation = 'Cette valeur représente le total des revenus pour le jour sélectionné. Comme il s\'agit d\'un seul jour, la "moyenne" correspond au total des revenus de cette journée.';
         break;
       case 'weekly':
-        final startOfWeek = selectedDate.subtract(Duration(days: selectedDate.weekday - 1));
-        final endOfWeek = startOfWeek.add(const Duration(days: 6));
-        String weekRange;
-        if (startOfWeek.month == endOfWeek.month && startOfWeek.year == endOfWeek.year) {
-          weekRange = '${startOfWeek.day}-${endOfWeek.day} ${DateFormat('MMMM yyyy', 'fr').format(startOfWeek)}'; // Ex: "22-28 décembre 2025"
-        } else {
-          weekRange = '${DateFormat('d MMM', 'fr').format(startOfWeek)} - ${DateFormat('d MMM yyyy', 'fr').format(endOfWeek)}'; // Ex: "29 déc. - 4 janv. 2026"
-        }
-        periodLabel = 'Période sélectionnée : $weekRange';
         calculationExplanation = 'La moyenne est calculée en divisant le total des revenus de la semaine par le nombre réel de jours dans la semaine (7 jours). Cette moyenne représente vos revenus quotidiens moyens sur la semaine.';
         break;
       case 'monthly':
-        periodLabel = 'Période sélectionnée : ${DateFormat('MMMM yyyy', 'fr').format(selectedDate)}'; // Ex: "Période sélectionnée : décembre 2025"
         calculationExplanation = 'La moyenne est calculée en divisant le total des revenus du mois par le nombre réel de jours dans le mois (28 à 31 jours selon le mois). Cette moyenne représente vos revenus quotidiens moyens sur le mois.';
         break;
-      case '3months':
-        final endDate = DateTime(selectedDate.year, selectedDate.month, selectedDate.day);
-        final startDate = DateTime(selectedDate.year, selectedDate.month - 2, 1);
-        periodLabel = 'Période sélectionnée : ${DateFormat('MMMM', 'fr').format(startDate)} - ${DateFormat('MMMM yyyy', 'fr').format(endDate)}'; // Ex: "Période sélectionnée : octobre - décembre 2025"
-        calculationExplanation = 'La moyenne est calculée en divisant le total des revenus des 3 derniers mois par le nombre réel de mois dans la période (3 mois). Cette moyenne représente vos revenus mensuels moyens sur les 3 derniers mois.';
-        break;
-      case '6months':
-        final endDate = DateTime(selectedDate.year, selectedDate.month, selectedDate.day);
-        final startDate = DateTime(selectedDate.year, selectedDate.month - 5, 1);
-        periodLabel = 'Période sélectionnée : ${DateFormat('MMMM', 'fr').format(startDate)} - ${DateFormat('MMMM yyyy', 'fr').format(endDate)}'; // Ex: "Période sélectionnée : juillet - décembre 2025"
-        calculationExplanation = 'La moyenne est calculée en divisant le total des revenus des 6 derniers mois par le nombre réel de mois dans la période (6 mois). Cette moyenne représente vos revenus mensuels moyens sur les 6 derniers mois.';
-        break;
       default:
-        periodLabel = 'Période sélectionnée';
         calculationExplanation = 'La moyenne est calculée en divisant le total des revenus par le nombre réel de périodes dans la plage de dates sélectionnée.';
     }
 
@@ -929,7 +896,7 @@ class AverageIncomeCardWidget extends StatelessWidget {
               const SizedBox(height: 20),
               // Période analysée
               Text(
-                periodLabel,
+                formatPeriodLabel(period, selectedDate),
                 style: GoogleFonts.poppins(
                   fontSize: 16,
                   color: AppTheme.textPrimary,

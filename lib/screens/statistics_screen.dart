@@ -7,7 +7,7 @@ import 'package:shimmer/shimmer.dart';
 import '../providers/budget_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/skeleton_loader.dart';
-import '../widgets/statistics/bar_chart_widget.dart';
+import '../widgets/statistics/calendar_chart_widget.dart';
 import '../widgets/statistics/pie_chart_widget.dart';
 import '../widgets/statistics/select_cards_modal.dart';
 import '../widgets/statistics/statistics_card_widgets.dart';
@@ -83,8 +83,20 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
         // Obtenir les cartes sélectionnées pour charger les données nécessaires
         final selectedCardIds = provider.statisticsCardsPreferences;
         
+        // S'assurer que les cartes nécessitant expenses/incomes sont incluses
+        final cardIdsToLoad = <String>[...selectedCardIds];
+        if (!cardIdsToLoad.contains('transaction_count_card') && 
+            !cardIdsToLoad.contains('8')) {
+          cardIdsToLoad.add('transaction_count_card');
+        }
+        // S'assurer que 'bar_chart' est inclus pour charger les dépenses/revenus (calendrier)
+        if (!cardIdsToLoad.contains('bar_chart') && 
+            !cardIdsToLoad.contains('1')) {
+          cardIdsToLoad.add('bar_chart');
+        }
+        
         // Charger les données nécessaires pour les cartes sélectionnées
-        await provider.loadStatisticsData(requiredCardIds: selectedCardIds);
+        await provider.loadStatisticsData(requiredCardIds: cardIdsToLoad);
         
         // Charger les graphiques sélectionnés
         await _loadChartsDataIfNeeded(provider);
@@ -170,18 +182,6 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
         endDate = DateTime(selectedDate.year, selectedDate.month + 1, 0, 23, 59, 59);
         break;
       
-      case '3months':
-        // Pour 3months : afficher les 3 derniers mois à partir de la date sélectionnée
-        endDate = DateTime(selectedDate.year, selectedDate.month, selectedDate.day, 23, 59, 59);
-        startDate = DateTime(selectedDate.year, selectedDate.month - 2, 1);
-        break;
-      
-      case '6months':
-        // Pour 6months : afficher les 6 derniers mois à partir de la date sélectionnée
-        endDate = DateTime(selectedDate.year, selectedDate.month, selectedDate.day, 23, 59, 59);
-        startDate = DateTime(selectedDate.year, selectedDate.month - 5, 1);
-        break;
-      
       default:
         // Par défaut : mois actuel
         startDate = DateTime(selectedDate.year, selectedDate.month, 1);
@@ -199,8 +199,6 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
       {'value': 'daily', 'label': 'Quotidien'},
       {'value': 'weekly', 'label': 'Hebdomadaire'},
       {'value': 'monthly', 'label': 'Mensuel'},
-      {'value': '3months', 'label': '3 Mois'},
-      {'value': '6months', 'label': '6 Mois'},
     ];
 
     showModalBottomSheet(
@@ -352,7 +350,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
   Widget _buildCardWidget(StatisticsCardType cardType, BudgetProvider provider) {
     switch (cardType) {
       case StatisticsCardType.barChart:
-        // Graphique ID 1 : Revenus vs Dépenses
+        // Calendrier avec revenus et dépenses par jour
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
           child: _isLoadingCharts
@@ -360,14 +358,14 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                   baseColor: Colors.grey[300]!,
                   highlightColor: Colors.grey[100]!,
                   child: Container(
-                    height: 350,
+                    height: 400,
                     decoration: BoxDecoration(
                       color: Colors.grey[200],
                       borderRadius: BorderRadius.circular(16),
                     ),
                   ),
                 )
-              : provider.monthlySummary.isEmpty
+              : (provider.expenses.isEmpty && provider.incomes.isEmpty)
                   ? Container(
                       padding: const EdgeInsets.all(40),
                       decoration: BoxDecoration(
@@ -379,7 +377,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.bar_chart_rounded, size: 48, color: Colors.grey[400]),
+                            Icon(Icons.calendar_today_rounded, size: 48, color: Colors.grey[400]),
                             const SizedBox(height: 12),
                             Text(
                               'Aucune donnée disponible',
@@ -392,7 +390,12 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                         ),
                       ),
                     )
-                  : BarChartWidget(monthlyData: provider.monthlySummary),
+                  : CalendarChartWidget(
+                      expenses: provider.expenses,
+                      incomes: provider.incomes,
+                      selectedDate: _selectedDate,
+                      period: _selectedPeriod,
+                    ),
         );
 
       case StatisticsCardType.pieChart:
@@ -434,6 +437,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
           child: SavingsCardWidget(
             savings: savings,
             period: _selectedPeriod,
+            selectedDate: _selectedDate,
           ),
         );
 
@@ -471,22 +475,6 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
             case 'monthly':
               // Pour monthly : moyenne par jour dans le mois
               numberOfPeriods = endDate.difference(startDate).inDays + 1;
-              averageExpense = numberOfPeriods > 0 ? totalExpenses / numberOfPeriods : 0.0;
-              break;
-              
-            case '3months':
-              // Pour 3months : moyenne par mois
-              // Calculer le nombre réel de mois entre startDate et endDate
-              final monthsDiff = (endDate.year - startDate.year) * 12 + (endDate.month - startDate.month) + 1;
-              numberOfPeriods = monthsDiff.clamp(1, 3); // Au minimum 1, au maximum 3
-              averageExpense = numberOfPeriods > 0 ? totalExpenses / numberOfPeriods : 0.0;
-              break;
-              
-            case '6months':
-              // Pour 6months : moyenne par mois
-              // Calculer le nombre réel de mois entre startDate et endDate
-              final monthsDiff = (endDate.year - startDate.year) * 12 + (endDate.month - startDate.month) + 1;
-              numberOfPeriods = monthsDiff.clamp(1, 6); // Au minimum 1, au maximum 6
               averageExpense = numberOfPeriods > 0 ? totalExpenses / numberOfPeriods : 0.0;
               break;
               
@@ -542,22 +530,6 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
             case 'monthly':
               // Pour monthly : moyenne par jour dans le mois
               numberOfPeriods = endDate.difference(startDate).inDays + 1;
-              averageIncome = numberOfPeriods > 0 ? totalIncome / numberOfPeriods : 0.0;
-              break;
-              
-            case '3months':
-              // Pour 3months : moyenne par mois
-              // Calculer le nombre réel de mois entre startDate et endDate
-              final monthsDiff = (endDate.year - startDate.year) * 12 + (endDate.month - startDate.month) + 1;
-              numberOfPeriods = monthsDiff.clamp(1, 3); // Au minimum 1, au maximum 3
-              averageIncome = numberOfPeriods > 0 ? totalIncome / numberOfPeriods : 0.0;
-              break;
-              
-            case '6months':
-              // Pour 6months : moyenne par mois
-              // Calculer le nombre réel de mois entre startDate et endDate
-              final monthsDiff = (endDate.year - startDate.year) * 12 + (endDate.month - startDate.month) + 1;
-              numberOfPeriods = monthsDiff.clamp(1, 6); // Au minimum 1, au maximum 6
               averageIncome = numberOfPeriods > 0 ? totalIncome / numberOfPeriods : 0.0;
               break;
               
@@ -1142,38 +1114,6 @@ class _PeriodFilterDropdown extends StatelessWidget {
       case 'monthly':
         // Format: "décembre, 2025"
         return DateFormat('MMMM, yyyy', 'fr').format(date);
-      case '3months':
-        // Format: "octobre - décembre, 2025" (3 derniers mois)
-        // Calculer le mois de début (2 mois avant le mois actuel)
-        int startMonthNum = date.month - 2;
-        int startYear = date.year;
-        if (startMonthNum <= 0) {
-          startMonthNum += 12;
-          startYear -= 1;
-        }
-        final startMonth = DateTime(startYear, startMonthNum, 1);
-        final endMonth = DateTime(date.year, date.month, 1);
-        if (startMonth.year == endMonth.year) {
-          return '${DateFormat('MMMM', 'fr').format(startMonth)} - ${DateFormat('MMMM', 'fr').format(endMonth)}, ${date.year}';
-        } else {
-          return '${DateFormat('MMMM', 'fr').format(startMonth)}, ${startMonth.year} - ${DateFormat('MMMM', 'fr').format(endMonth)}, ${endMonth.year}';
-        }
-      case '6months':
-        // Format: "juillet - décembre, 2025" (6 derniers mois)
-        // Calculer le mois de début (5 mois avant le mois actuel)
-        int startMonthNum = date.month - 5;
-        int startYear = date.year;
-        if (startMonthNum <= 0) {
-          startMonthNum += 12;
-          startYear -= 1;
-        }
-        final startMonth = DateTime(startYear, startMonthNum, 1);
-        final endMonth = DateTime(date.year, date.month, 1);
-        if (startMonth.year == endMonth.year) {
-          return '${DateFormat('MMMM', 'fr').format(startMonth)} - ${DateFormat('MMMM', 'fr').format(endMonth)}, ${date.year}';
-        } else {
-          return '${DateFormat('MMMM', 'fr').format(startMonth)}, ${startMonth.year} - ${DateFormat('MMMM', 'fr').format(endMonth)}, ${endMonth.year}';
-        }
       default:
         return DateFormat('MMMM, yyyy', 'fr').format(date);
     }
@@ -1190,12 +1130,6 @@ class _PeriodFilterDropdown extends StatelessWidget {
         break;
       case 'monthly':
         newDate = DateTime(selectedDate.year, selectedDate.month - 1, selectedDate.day);
-        break;
-      case '3months':
-        newDate = DateTime(selectedDate.year, selectedDate.month - 3, selectedDate.day);
-        break;
-      case '6months':
-        newDate = DateTime(selectedDate.year, selectedDate.month - 6, selectedDate.day);
         break;
       default:
         newDate = DateTime(selectedDate.year, selectedDate.month - 1, selectedDate.day);
@@ -1215,12 +1149,6 @@ class _PeriodFilterDropdown extends StatelessWidget {
       case 'monthly':
         newDate = DateTime(selectedDate.year, selectedDate.month + 1, selectedDate.day);
         break;
-      case '3months':
-        newDate = DateTime(selectedDate.year, selectedDate.month + 3, selectedDate.day);
-        break;
-      case '6months':
-        newDate = DateTime(selectedDate.year, selectedDate.month + 6, selectedDate.day);
-        break;
       default:
         newDate = DateTime(selectedDate.year, selectedDate.month + 1, selectedDate.day);
     }
@@ -1232,8 +1160,6 @@ class _PeriodFilterDropdown extends StatelessWidget {
       {'value': 'daily', 'label': 'Quotidien'},
       {'value': 'weekly', 'label': 'Hebdomadaire'},
       {'value': 'monthly', 'label': 'Mensuel'},
-      {'value': '3months', 'label': '3 Mois'},
-      {'value': '6months', 'label': '6 Mois'},
     ];
 
     showModalBottomSheet(

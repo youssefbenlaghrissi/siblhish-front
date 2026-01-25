@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../providers/budget_provider.dart';
@@ -156,10 +155,6 @@ class _EditScheduledPaymentModalState extends State<EditScheduledPaymentModal> {
         );
       }
       
-      debugPrint('📅 Date sélectionnée: $_selectedDate');
-      debugPrint('📅 Date originale paiement: ${widget.payment.dueDate}');
-      debugPrint('📅 Date finale utilisée: $finalDate');
-      debugPrint('📅 Date formatée pour JSON: ${finalDate.toIso8601String().split('.')[0]}');
 
       final payment = ScheduledPayment(
         id: widget.payment.id,
@@ -176,18 +171,6 @@ class _EditScheduledPaymentModalState extends State<EditScheduledPaymentModal> {
         isPaid: widget.payment.isPaid, // Préserver le statut de paiement
       );
 
-      debugPrint('   ID: ${payment.id}');
-      debugPrint('   Nom: ${payment.name}');
-      debugPrint('   Montant: ${payment.amount}');
-      debugPrint('   Date d\'échéance: ${payment.dueDate}');
-      debugPrint('   Catégorie ID: ${payment.categoryId}');
-      debugPrint('   Bénéficiaire: ${payment.beneficiary}');
-      debugPrint('   Méthode: ${payment.paymentMethod}');
-      debugPrint('   Récurrent: ${payment.isRecurring}');
-      debugPrint('   Fréquence: ${payment.recurrenceFrequency}');
-      debugPrint('   Notification: ${payment.notificationOption}');
-      debugPrint('   Payé: ${payment.isPaid}');
-      debugPrint('   📋 JSON complet envoyé: ${payment.toJson()}');
 
       await provider.updateScheduledPayment(payment);
 
@@ -270,7 +253,7 @@ class _EditScheduledPaymentModalState extends State<EditScheduledPaymentModal> {
                     TextFormField(
                       controller: _nameController,
                       decoration: const InputDecoration(
-                        labelText: 'Nom du paiement',
+                        labelText: 'Nom du paiement *',
                         prefixIcon: Icon(Icons.label_rounded),
                       ),
                       validator: (value) {
@@ -286,7 +269,7 @@ class _EditScheduledPaymentModalState extends State<EditScheduledPaymentModal> {
                     TextFormField(
                       controller: _amountController,
                       decoration: const InputDecoration(
-                        labelText: 'Montant',
+                        labelText: 'Montant *',
                         prefixText: 'MAD ',
                         prefixIcon: Icon(Icons.attach_money_rounded),
                       ),
@@ -310,7 +293,7 @@ class _EditScheduledPaymentModalState extends State<EditScheduledPaymentModal> {
                           ? _selectedCategoryId
                           : null,
                       decoration: const InputDecoration(
-                        labelText: 'Catégorie',
+                        labelText: 'Catégorie *',
                         prefixIcon: Icon(Icons.category_rounded),
                       ),
                       items: provider.categories.map<DropdownMenuItem<String>>((Category category) {
@@ -418,7 +401,7 @@ class _EditScheduledPaymentModalState extends State<EditScheduledPaymentModal> {
                       DropdownButtonFormField<String>(
                         value: _recurrenceFrequency,
                         decoration: const InputDecoration(
-                          labelText: 'Fréquence',
+                          labelText: 'Fréquence *',
                           prefixIcon: Icon(Icons.repeat_rounded),
                         ),
                         items: const [

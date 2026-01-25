@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../providers/budget_provider.dart';
@@ -82,8 +81,6 @@ class _EditTransactionModalState extends State<EditTransactionModal> {
             final provider = context.read<BudgetProvider>();
             final effectiveId = expense.effectiveCategoryId;
             
-            debugPrint('🔍 Recherche catégorie pour modification: effectiveId=$effectiveId, categoryName=${expense.category?.name}');
-            debugPrint('📋 Catégories disponibles: ${provider.categories.map((c) => '${c.id}:${c.name}').join(', ')}');
             
             if (provider.categories.isNotEmpty) {
               Category? matchingCategory;
@@ -163,7 +160,6 @@ class _EditTransactionModalState extends State<EditTransactionModal> {
           _selectedDate.minute,
           _selectedDate.second,
         );
-        debugPrint('📅 Date sélectionnée: $_selectedDate');
       });
     }
   }
@@ -182,7 +178,6 @@ class _EditTransactionModalState extends State<EditTransactionModal> {
           picked.hour,
           picked.minute,
         );
-        debugPrint('🕐 Heure sélectionnée: $_selectedDate');
       });
     }
   }
@@ -215,10 +210,6 @@ class _EditTransactionModalState extends State<EditTransactionModal> {
         );
       }
       
-      debugPrint('📅 Date sélectionnée: $_selectedDate');
-      debugPrint('📅 Date originale transaction: ${widget.transaction.date}');
-      debugPrint('📅 Date finale utilisée: $finalDate');
-      debugPrint('📅 Date formatée pour JSON: ${finalDate.toIso8601String().split('.')[0]}');
 
       if (isIncome) {
         final income = Income(
@@ -239,20 +230,6 @@ class _EditTransactionModalState extends State<EditTransactionModal> {
           userId: provider.currentUser!.id,
         );
         
-        debugPrint('   ID: ${income.id}');
-        debugPrint('   Montant: ${income.amount}');
-        debugPrint('   Date: ${income.date}');
-        debugPrint('   Source: ${income.source}');
-        debugPrint('   Méthode de paiement: ${income.paymentMethod}');
-        debugPrint('   Description: ${income.description}');
-        debugPrint('   Récurrent: ${income.isRecurring}');
-        debugPrint('   Fréquence récurrence: ${income.recurrenceFrequency}');
-        debugPrint('   Date fin récurrence: ${income.recurrenceEndDate}');
-        debugPrint('   Jours de la semaine: ${income.recurrenceDaysOfWeek}');
-        debugPrint('   Jour du mois: ${income.recurrenceDayOfMonth}');
-        debugPrint('   Jour de l\'année: ${income.recurrenceDayOfYear}');
-        debugPrint('   User ID: ${income.userId}');
-        debugPrint('   📋 JSON complet envoyé: ${income.toJson()}');
         
         await provider.updateIncome(income);
       } else {
@@ -286,21 +263,6 @@ class _EditTransactionModalState extends State<EditTransactionModal> {
           userId: provider.currentUser!.id,
         );
         
-        debugPrint('   ID: ${expense.id}');
-        debugPrint('   Montant: ${expense.amount}');
-        debugPrint('   Date: ${expense.date}');
-        debugPrint('   Catégorie ID: ${expense.categoryId}');
-        debugPrint('   Lieu: ${expense.location}');
-        debugPrint('   Méthode de paiement: ${expense.paymentMethod}');
-        debugPrint('   Description: ${expense.description}');
-        debugPrint('   Récurrent: ${expense.isRecurring}');
-        debugPrint('   Fréquence récurrence: ${expense.recurrenceFrequency}');
-        debugPrint('   Date fin récurrence: ${expense.recurrenceEndDate}');
-        debugPrint('   Jours de la semaine: ${expense.recurrenceDaysOfWeek}');
-        debugPrint('   Jour du mois: ${expense.recurrenceDayOfMonth}');
-        debugPrint('   Jour de l\'année: ${expense.recurrenceDayOfYear}');
-        debugPrint('   User ID: ${expense.userId}');
-        debugPrint('   📋 JSON complet envoyé: ${expense.toJson()}');
         
         await provider.updateExpense(expense);
       }
@@ -387,6 +349,7 @@ class _EditTransactionModalState extends State<EditTransactionModal> {
               padding: const EdgeInsets.all(20),
               child: Form(
                 key: _formKey,
+                autovalidateMode: AutovalidateMode.disabled,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -394,7 +357,7 @@ class _EditTransactionModalState extends State<EditTransactionModal> {
                     TextFormField(
                       controller: _amountController,
                       decoration: const InputDecoration(
-                        labelText: 'Montant',
+                        labelText: 'Montant *',
                         prefixText: 'MAD ',
                         prefixIcon: Icon(Icons.attach_money_rounded),
                       ),
@@ -420,7 +383,7 @@ class _EditTransactionModalState extends State<EditTransactionModal> {
                             ? _selectedCategoryId
                             : null,
                         decoration: const InputDecoration(
-                          labelText: 'Catégorie',
+                          labelText: 'Catégorie *',
                           prefixIcon: Icon(Icons.category_rounded),
                         ),
                         items: provider.categories
@@ -563,7 +526,7 @@ class _EditTransactionModalState extends State<EditTransactionModal> {
                       DropdownButtonFormField<String>(
                         value: _recurrenceFrequency,
                         decoration: const InputDecoration(
-                          labelText: 'Fréquence',
+                          labelText: 'Fréquence *',
                           prefixIcon: Icon(Icons.repeat_rounded),
                         ),
                         items: const [
@@ -627,9 +590,7 @@ class _EditTransactionModalState extends State<EditTransactionModal> {
                       onPressed: _isSubmitting ? null : _submit,
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
-                        backgroundColor: isIncome
-                            ? AppTheme.incomeColor
-                            : AppTheme.expenseColor,
+                        backgroundColor: AppTheme.incomeColor,
                         disabledBackgroundColor: Colors.grey[300],
                       ),
                       child: _isSubmitting

@@ -35,6 +35,13 @@ class _EditGoalModalState extends State<EditGoalModal> {
     _currentAmountController = TextEditingController(text: widget.goal.currentAmount.toString());
     _targetDate = widget.goal.targetDate;
     // La catégorie sera chargée dans le build via Consumer
+    
+    // Ajouter un listener pour revalider currentAmount quand targetAmount change
+    _targetAmountController.addListener(() {
+      if (_formKey.currentState != null) {
+        _formKey.currentState!.validate();
+      }
+    });
   }
 
   @override
@@ -65,6 +72,19 @@ class _EditGoalModalState extends State<EditGoalModal> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate() || _isSubmitting) return;
 
+    // Vérifier si l'objectif est atteint - si oui, empêcher la modification
+    if (widget.goal.isAchieved) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Un objectif atteint ne peut pas être modifié'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+
     setState(() {
       _isSubmitting = true;
     });
@@ -72,6 +92,26 @@ class _EditGoalModalState extends State<EditGoalModal> {
     try {
       final provider = context.read<BudgetProvider>();
       final newCurrentAmount = double.parse(_currentAmountController.text);
+      final newTargetAmount = double.parse(_targetAmountController.text);
+      
+      // Vérifier que le montant actuel ne dépasse pas le montant cible
+      if (newCurrentAmount > newTargetAmount) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Le montant actuel (${newCurrentAmount.toStringAsFixed(2)} MAD) ne peut pas dépasser le montant cible (${newTargetAmount.toStringAsFixed(2)} MAD)',
+              ),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        setState(() {
+          _isSubmitting = false;
+        });
+        return;
+      }
+      
       debugPrint('📝 EditGoalModal - currentAmount saisi: $newCurrentAmount');
       debugPrint('📝 EditGoalModal - currentAmount original: ${widget.goal.currentAmount}');
       final updatedGoal = Goal(
@@ -80,7 +120,7 @@ class _EditGoalModalState extends State<EditGoalModal> {
         description: _descriptionController.text.isEmpty
             ? null
             : _descriptionController.text,
-        targetAmount: double.parse(_targetAmountController.text),
+        targetAmount: newTargetAmount,
         currentAmount: newCurrentAmount,
         targetDate: _targetDate,
         isAchieved: widget.goal.isAchieved,
@@ -164,12 +204,42 @@ class _EditGoalModalState extends State<EditGoalModal> {
               padding: const EdgeInsets.all(20),
               child: Form(
                 key: _formKey,
+                autovalidateMode: AutovalidateMode.onUserInteraction,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    // Message si l'objectif est atteint
+                    if (widget.goal.isAchieved) ...[
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.info_outline_rounded, color: Colors.orange, size: 24),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                'Cet objectif est atteint et ne peut pas être modifié',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 14,
+                                  color: Colors.orange[800],
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                    ],
                     // Name
                     TextFormField(
                       controller: _nameController,
+                      enabled: !widget.goal.isAchieved && !_isSubmitting,
                       decoration: const InputDecoration(
                         labelText: 'Nom de l\'objectif',
                         prefixIcon: Icon(Icons.flag_rounded),
@@ -186,6 +256,7 @@ class _EditGoalModalState extends State<EditGoalModal> {
                     // Description
                     TextFormField(
                       controller: _descriptionController,
+                      enabled: !widget.goal.isAchieved && !_isSubmitting,
                       decoration: const InputDecoration(
                         labelText: 'Description (optionnel)',
                         prefixIcon: Icon(Icons.description_rounded),
@@ -250,7 +321,7 @@ class _EditGoalModalState extends State<EditGoalModal> {
                               );
                             }),
                           ],
-                          onChanged: _isSubmitting ? null : (value) {
+                          onChanged: (widget.goal.isAchieved || _isSubmitting) ? null : (value) {
                             setState(() {
                               _selectedCategory = value;
                             });
@@ -263,6 +334,7 @@ class _EditGoalModalState extends State<EditGoalModal> {
                     // Current Amount
                     TextFormField(
                       controller: _currentAmountController,
+                      enabled: !widget.goal.isAchieved && !_isSubmitting,
                       decoration: const InputDecoration(
                         labelText: 'Montant actuel',
                         prefixText: 'MAD ',
@@ -273,9 +345,14 @@ class _EditGoalModalState extends State<EditGoalModal> {
                         if (value == null || value.isEmpty) {
                           return 'Veuillez entrer un montant';
                         }
-                        if (double.tryParse(value) == null ||
-                            double.parse(value) < 0) {
+                        final currentAmount = double.tryParse(value);
+                        if (currentAmount == null || currentAmount < 0) {
                           return 'Montant invalide';
+                        }
+                        // Vérifier que le montant actuel ne dépasse pas le montant cible
+                        final targetAmount = double.tryParse(_targetAmountController.text);
+                        if (targetAmount != null && currentAmount > targetAmount) {
+                          return 'Le montant actuel ne peut pas dépasser le montant cible (${targetAmount.toStringAsFixed(2)} MAD)';
                         }
                         return null;
                       },
@@ -285,6 +362,7 @@ class _EditGoalModalState extends State<EditGoalModal> {
                     // Target Amount
                     TextFormField(
                       controller: _targetAmountController,
+                      enabled: !widget.goal.isAchieved && !_isSubmitting,
                       decoration: const InputDecoration(
                         labelText: 'Montant cible',
                         prefixText: 'MAD ',
@@ -306,7 +384,7 @@ class _EditGoalModalState extends State<EditGoalModal> {
 
                     // Target Date
                     InkWell(
-                      onTap: _selectDate,
+                      onTap: (widget.goal.isAchieved || _isSubmitting) ? null : _selectDate,
                       child: InputDecorator(
                         decoration: const InputDecoration(
                           labelText: 'Date cible (optionnel)',
@@ -323,10 +401,10 @@ class _EditGoalModalState extends State<EditGoalModal> {
 
                     // Submit Button
                     ElevatedButton(
-                      onPressed: _isSubmitting ? null : _submit,
+                      onPressed: (widget.goal.isAchieved || _isSubmitting) ? null : _submit,
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
-                        backgroundColor: const Color(0xFFFF6B6B),
+                        backgroundColor: AppTheme.incomeColor,
                         disabledBackgroundColor: Colors.grey[300],
                       ),
                       child: _isSubmitting
