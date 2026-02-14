@@ -1,5 +1,6 @@
-package com.example.siblhish_front
+package ma.siblhish
 
 import io.flutter.embedding.android.FlutterActivity
 
 class MainActivity : FlutterActivity()
+

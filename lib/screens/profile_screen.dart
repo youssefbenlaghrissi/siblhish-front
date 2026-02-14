@@ -13,10 +13,11 @@ import '../widgets/edit_budget_modal.dart';
 import '../widgets/edit_category_color_modal.dart';
 import '../utils/color_utils.dart';
 import '../services/auth_service.dart';
-import 'notifications_screen.dart';
 import '../widgets/skeleton_loader.dart';
 import '../widgets/custom_snackbar.dart';
 import '../widgets/budget_suggestion_wizard.dart';
+import '../services/push_notification_service.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 class ProfileScreen extends StatelessWidget {
   final bool isVisible;
@@ -132,7 +133,7 @@ class ProfileScreen extends StatelessWidget {
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: _SettingsCard(),
+                    child: _SettingsCard(provider: provider),
                   ),
                 ),
 
@@ -1025,8 +1026,15 @@ class _CategoryCard extends StatelessWidget {
 }
 
 class _SettingsCard extends StatelessWidget {
+  final BudgetProvider provider;
+
+  const _SettingsCard({required this.provider});
+
   @override
   Widget build(BuildContext context) {
+    final user = provider.currentUser;
+    final notificationsEnabled = user?.notificationsEnabled ?? true;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -1045,21 +1053,18 @@ class _SettingsCard extends StatelessWidget {
           _SettingItem(
             icon: Icons.language_rounded,
             title: 'Langue',
-            subtitle: 'Français',
-            onTap: () {},
+            subtitle: _getLanguageName(user?.language ?? 'fr'),
+            onTap: () {
+              _showLanguageDialog(context, provider, user?.language ?? 'fr');
+            },
           ),
           const Divider(),
           _SettingItem(
             icon: Icons.notifications_rounded,
             title: 'Notifications',
-            subtitle: 'Activées',
+            subtitle: notificationsEnabled ? 'Activées' : 'Désactivées',
             onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const NotificationsScreen(),
-                ),
-              );
+              _showNotificationsDialog(context, provider, notificationsEnabled);
             },
           ),
           const Divider(),
@@ -1205,6 +1210,488 @@ class _SettingItem extends StatelessWidget {
             const Icon(
               Icons.chevron_right_rounded,
               color: AppTheme.textSecondary,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// Fonction helper pour obtenir le nom de la langue
+String _getLanguageName(String languageCode) {
+  switch (languageCode.toLowerCase()) {
+    case 'fr':
+      return 'Français';
+    case 'en':
+      return 'English';
+    case 'ar':
+      return 'العربية';
+    default:
+      return 'Français';
+  }
+}
+
+void _showNotificationsDialog(BuildContext context, BudgetProvider provider, bool currentValue) {
+  showDialog(
+    context: context,
+    builder: (dialogContext) => _NotificationsDialog(
+      provider: provider,
+      initialValue: currentValue,
+    ),
+  );
+}
+
+void _showLanguageDialog(BuildContext context, BudgetProvider provider, String currentLanguage) {
+  showDialog(
+    context: context,
+    builder: (dialogContext) => _LanguageDialog(
+      provider: provider,
+      initialLanguage: currentLanguage,
+    ),
+  );
+}
+
+class _NotificationsDialog extends StatefulWidget {
+  final BudgetProvider provider;
+  final bool initialValue;
+
+  const _NotificationsDialog({
+    required this.provider,
+    required this.initialValue,
+  });
+
+  @override
+  State<_NotificationsDialog> createState() => _NotificationsDialogState();
+}
+
+class _NotificationsDialogState extends State<_NotificationsDialog> {
+  late bool _notificationsEnabled;
+  bool _isUpdating = false;
+  AuthorizationStatus? _systemPermissionStatus;
+
+  @override
+  void initState() {
+    super.initState();
+    _notificationsEnabled = widget.initialValue;
+    _checkSystemPermissions();
+  }
+
+  Future<void> _checkSystemPermissions() async {
+    final status = await PushNotificationService.getAuthorizationStatus();
+    setState(() {
+      _systemPermissionStatus = status;
+    });
+  }
+
+  Future<void> _toggleNotifications(bool value) async {
+    if (_isUpdating) return;
+
+    // Si l'utilisateur active les notifications et que les permissions système sont refusées
+    if (value && _systemPermissionStatus == AuthorizationStatus.denied) {
+      // Afficher un popup de confirmation pour redemander les permissions
+      final shouldRequest = await _showPermissionRequestDialog();
+      if (!shouldRequest) {
+        // L'utilisateur a annulé, ne rien faire
+        return;
+      }
+
+      // Redemander les permissions système
+      setState(() {
+        _isUpdating = true;
+      });
+
+      final permissionGranted = await PushNotificationService.requestPermissionAgain();
+
+      if (!permissionGranted) {
+        // Permissions refusées, annuler
+        if (mounted) {
+          setState(() {
+            _isUpdating = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Les permissions de notifications ont été refusées. Vous pouvez les activer dans les paramètres de votre appareil.'),
+              backgroundColor: Colors.orange,
+              duration: const Duration(seconds: 5),
+            ),
+          );
+        }
+        return;
+      }
+
+      // Permissions accordées, mettre à jour le statut système
+      await _checkSystemPermissions();
+    }
+
+    // Mettre à jour notificationsEnabled dans la DB
+    setState(() {
+      _isUpdating = true;
+      _notificationsEnabled = value;
+    });
+
+    try {
+      await widget.provider.updateNotificationsEnabled(value);
+      
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          CustomSnackBar.success(
+            title: value ? 'Notifications activées' : 'Notifications désactivées',
+            description: value 
+                ? 'Vous recevrez désormais les notifications push'
+                : 'Vous ne recevrez plus de notifications push',
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isUpdating = false;
+          _notificationsEnabled = widget.initialValue;
+        });
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur: ${e.toString().replaceAll('Exception: ', '')}'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<bool> _showPermissionRequestDialog() async {
+    return await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: Row(
+          children: [
+            Icon(
+              Icons.notifications_active_rounded,
+              color: AppTheme.primaryColor,
+              size: 24,
+            ),
+            const SizedBox(width: 12),
+            Text(
+              'Autoriser les notifications',
+              style: GoogleFonts.poppins(
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          'Pour recevoir des notifications, vous devez autoriser l\'accès aux notifications dans les paramètres de votre appareil.',
+          style: GoogleFonts.poppins(
+            fontSize: 14,
+            color: AppTheme.textSecondary,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text(
+              'Annuler',
+              style: GoogleFonts.poppins(
+                color: AppTheme.textSecondary,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryColor,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: Text(
+              'Autoriser',
+              style: GoogleFonts.poppins(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    ) ?? false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+      ),
+      title: Row(
+        children: [
+          Icon(
+            Icons.notifications_rounded,
+            color: AppTheme.primaryColor,
+            size: 24,
+          ),
+          const SizedBox(width: 12),
+          Text(
+            'Notifications',
+            style: GoogleFonts.poppins(
+              fontWeight: FontWeight.bold,
+              fontSize: 20,
+            ),
+          ),
+        ],
+      ),
+      content: _isUpdating
+          ? const SizedBox(
+              height: 60,
+              child: Center(
+                child: CircularProgressIndicator(),
+              ),
+            )
+          : Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Activez les notifications pour recevoir des alertes sur vos paiements planifiés, revenus et dépenses récurrents et autres événements importants.',
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Notifications',
+                      style: GoogleFonts.poppins(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    Switch(
+                      value: _notificationsEnabled,
+                      onChanged: _toggleNotifications,
+                      activeColor: AppTheme.primaryColor,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+      actions: _isUpdating
+          ? []
+          : [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(
+                  'Fermer',
+                  style: GoogleFonts.poppins(
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+              ),
+            ],
+    );
+  }
+}
+
+class _LanguageDialog extends StatefulWidget {
+  final BudgetProvider provider;
+  final String initialLanguage;
+
+  const _LanguageDialog({
+    required this.provider,
+    required this.initialLanguage,
+  });
+
+  @override
+  State<_LanguageDialog> createState() => _LanguageDialogState();
+}
+
+class _LanguageDialogState extends State<_LanguageDialog> {
+  late String _selectedLanguage;
+  bool _isUpdating = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedLanguage = widget.initialLanguage;
+  }
+
+  Future<void> _selectLanguage(String language) async {
+    if (_isUpdating || _selectedLanguage == language) return;
+
+    setState(() {
+      _isUpdating = true;
+      _selectedLanguage = language;
+    });
+
+    try {
+      await widget.provider.updateLanguage(language);
+      
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          CustomSnackBar.success(
+            title: 'Langue mise à jour',
+            description: 'La langue a été changée avec succès',
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isUpdating = false;
+          _selectedLanguage = widget.initialLanguage;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+      ),
+      title: Row(
+        children: [
+          Icon(
+            Icons.language_rounded,
+            color: AppTheme.primaryColor,
+            size: 24,
+          ),
+          const SizedBox(width: 12),
+          Text(
+            'Langue',
+            style: GoogleFonts.poppins(
+              fontWeight: FontWeight.bold,
+              fontSize: 20,
+            ),
+          ),
+        ],
+      ),
+      content: _isUpdating
+          ? const SizedBox(
+              height: 60,
+              child: Center(
+                child: CircularProgressIndicator(),
+              ),
+            )
+          : Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Sélectionnez votre langue préférée pour l\'application.',
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                _LanguageOption(
+                  languageCode: 'fr',
+                  languageName: 'Français',
+                  isSelected: _selectedLanguage == 'fr',
+                  onTap: () => _selectLanguage('fr'),
+                ),
+                const SizedBox(height: 12),
+                _LanguageOption(
+                  languageCode: 'en',
+                  languageName: 'English',
+                  isSelected: _selectedLanguage == 'en',
+                  onTap: () => _selectLanguage('en'),
+                ),
+                const SizedBox(height: 12),
+                _LanguageOption(
+                  languageCode: 'ar',
+                  languageName: 'العربية',
+                  isSelected: _selectedLanguage == 'ar',
+                  onTap: () => _selectLanguage('ar'),
+                ),
+              ],
+            ),
+      actions: _isUpdating
+          ? []
+          : [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(
+                  'Fermer',
+                  style: GoogleFonts.poppins(
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+              ),
+            ],
+    );
+  }
+}
+
+class _LanguageOption extends StatelessWidget {
+  final String languageCode;
+  final String languageName;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _LanguageOption({
+    required this.languageCode,
+    required this.languageName,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: isSelected 
+              ? AppTheme.primaryColor.withOpacity(0.1)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected 
+                ? AppTheme.primaryColor
+                : Colors.grey.withOpacity(0.3),
+            width: isSelected ? 2 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              isSelected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+              color: isSelected ? AppTheme.primaryColor : AppTheme.textSecondary,
+              size: 24,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                languageName,
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                  color: isSelected ? AppTheme.primaryColor : null,
+                ),
+              ),
             ),
           ],
         ),

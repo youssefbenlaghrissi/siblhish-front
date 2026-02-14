@@ -33,5 +33,24 @@ class UserService {
       'newPassword': newPassword,
     });
   }
+
+  // Mettre à jour uniquement les préférences (notificationsEnabled et language)
+  static Future<User> updatePreferences(
+      String userId, {
+      bool? notificationsEnabled,
+      String? language,
+      }) async {
+    final Map<String, dynamic> body = {};
+    if (notificationsEnabled != null) {
+      body['notificationsEnabled'] = notificationsEnabled;
+    }
+    if (language != null) {
+      body['language'] = language;
+    }
+    
+    final response = await ApiService.patch('/users/$userId/preferences', body);
+    final data = response['data'] as Map<String, dynamic>;
+    return User.fromJson(data);
+  }
 }
 

@@ -105,6 +105,13 @@ class _SplashScreenState extends State<SplashScreen>
   Future<void> _initializeAndNavigate() async {
     final stopwatch = Stopwatch()..start();
     
+    // Essayer de restaurer la session Google silencieusement
+    try {
+      await AuthService.restoreGoogleSession();
+    } catch (e) {
+      // Ignorer les erreurs de restauration silencieuse
+    }
+    
     final isLoggedIn = await AuthService.isLoggedIn();
     
     if (!isLoggedIn) {

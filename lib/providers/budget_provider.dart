@@ -18,6 +18,7 @@ import '../services/favorite_service.dart';
 import '../services/local_storage_service.dart';
 import '../services/card_service.dart';
 import '../services/budget_service.dart';
+import '../services/push_notification_service.dart';
 import '../models/statistics.dart';
 import '../models/card.dart';
 import '../models/budget_vs_actual.dart';
@@ -168,6 +169,25 @@ class BudgetProvider extends ChangeNotifier {
       _isLoading = false;
       // OPTIMISATION : Un seul notifyListeners() à la fin
       notifyListeners();
+      
+      // Initialiser le service de notifications push avec l'ID utilisateur et notificationsEnabled
+      // Pour les utilisateurs existants, utiliser le statut de la DB (ne pas redemander les permissions)
+      // Pour les nouveaux utilisateurs, les permissions ont déjà été demandées au login
+      await PushNotificationService.initialize(
+        notificationsEnabledFromDB: _currentUser?.notificationsEnabled,
+        isNewUser: false, // Toujours false ici car l'utilisateur existe déjà dans la DB
+      );
+      PushNotificationService.setUserId(
+        userId,
+        onNotificationsEnabledChanged: (enabledStr) async {
+          // Callback pour mettre à jour notificationsEnabled dans le provider
+          // enabledStr est "true" ou "false" (string)
+          final enabled = enabledStr.toLowerCase() == 'true';
+          if (_currentUser != null && _currentUser!.notificationsEnabled != enabled) {
+            await updateNotificationsEnabled(enabled);
+          }
+        },
+      );
       
       // Charger les données de l'accueil en arrière-plan (une seule fois)
       _loadHomeDataInBackground(userId);
@@ -1583,13 +1603,37 @@ class BudgetProvider extends ChangeNotifier {
   Future<void> updateNotificationsEnabled(bool enabled) async {
     if (_currentUser == null) return;
     try {
-      // Mettre à jour directement sans recharger le profil complet
-      final updatedUser = await UserService.updateProfile(_currentUser!.id, {
-        'firstName': _currentUser!.firstName,
-        'lastName': _currentUser!.lastName,
-        'language': _currentUser!.language,
-        'notificationsEnabled': enabled,
-      });
+      debugPrint('🔔 Mise à jour notificationsEnabled: $enabled');
+      debugPrint('📦 Body API PATCH /users/${_currentUser!.id}/preferences:');
+      debugPrint('   notificationsEnabled: $enabled');
+      
+      // Utiliser le nouvel endpoint pour mettre à jour uniquement les préférences
+      final updatedUser = await UserService.updatePreferences(
+        _currentUser!.id,
+        notificationsEnabled: enabled,
+      );
+      _currentUser = updatedUser;
+      notifyListeners();
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  // Mettre à jour uniquement la langue
+  Future<void> updateLanguage(String language) async {
+    if (_currentUser == null) return;
+    try {
+      debugPrint('🌐 Mise à jour language: $language');
+      debugPrint('📦 Body API PATCH /users/${_currentUser!.id}/preferences:');
+      debugPrint('   language: $language');
+      
+      // Utiliser le nouvel endpoint pour mettre à jour uniquement la langue
+      final updatedUser = await UserService.updatePreferences(
+        _currentUser!.id,
+        language: language,
+      );
       _currentUser = updatedUser;
       notifyListeners();
     } catch (e) {

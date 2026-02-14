@@ -64,6 +64,7 @@ class ApiService {
     final url = '${ApiConfig.baseUrl}$endpoint';
     try {
       debugPrint('🌐 API PUT: $url');
+      debugPrint('📦 Body: ${json.encode(body)}');
       
       final response = await http
           .put(
@@ -92,6 +93,7 @@ class ApiService {
     final url = '${ApiConfig.baseUrl}$endpoint';
     try {
       debugPrint('🌐 API PATCH: $url');
+      debugPrint('📦 Body: ${json.encode(body)}');
       
       final response = await http
           .patch(

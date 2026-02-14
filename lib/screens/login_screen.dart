@@ -64,7 +64,12 @@ class _LoginScreenState extends State<LoginScreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = 'Erreur de connexion: ${e.toString()}';
+          // Extraire le message d'erreur sans le préfixe "Exception: "
+          String errorMsg = e.toString();
+          if (errorMsg.startsWith('Exception: ')) {
+            errorMsg = errorMsg.substring(11);
+          }
+          _errorMessage = errorMsg;
           _isLoading = false;
         });
       }

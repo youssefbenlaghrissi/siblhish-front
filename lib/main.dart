@@ -4,6 +4,10 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'firebase_options.dart';
+import 'firebase_messaging_handler.dart';
 import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
@@ -13,9 +17,27 @@ import 'screens/profile_screen.dart';
 import 'screens/transactions_screen.dart';
 import 'providers/budget_provider.dart';
 import 'theme/app_theme.dart';
+import 'services/push_notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+    // Initialize Firebase
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    debugPrint('✅ Firebase initialisé');
+    
+    // Configurer le handler pour les notifications en background
+    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+    
+    // Note: PushNotificationService.initialize() sera appelé après le chargement du profil utilisateur
+    // dans BudgetProvider.initialize() pour avoir accès à notificationsEnabled depuis la base de données
+  } catch (e) {
+    debugPrint('❌ Erreur lors de l\'initialisation de Firebase: $e');
+    // L'app peut continuer sans Firebase, mais les notifications push ne fonctionneront pas
+  }
 
   // Initialize locale data for DateFormat
   await initializeDateFormatting('fr', null);
