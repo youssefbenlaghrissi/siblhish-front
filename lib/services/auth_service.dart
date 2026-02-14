@@ -23,27 +23,14 @@ class AuthService {
   /// 3. Sauvegarde de la session localement
   static Future<Map<String, dynamic>?> signInWithGoogle() async {
     try {
-      debugPrint('🔐 Starting Google Sign In...');
+      // Authentification interactive (toujours demander à l'utilisateur)
+      GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
       
-      // Vérifier d'abord si l'utilisateur est déjà connecté silencieusement
-      GoogleSignInAccount? googleUser = await _googleSignIn.signInSilently();
-      
-      // Si pas de session silencieuse, demander une nouvelle authentification
       if (googleUser == null) {
-        debugPrint('📝 Aucune session silencieuse, demande d\'authentification...');
-        googleUser = await _googleSignIn.signIn();
-        
-        if (googleUser == null) {
-          return null;
-        }
-      } else {
+        return null;
       }
-      
-      // Ne pas nettoyer la session précédente si l'utilisateur est déjà connecté
-      // Cela permet de préserver la session entre les ouvertures de l'app
 
-
-      // 2. Envoyer au backend pour créer/récupérer l'utilisateur
+      // Envoyer au backend pour créer/récupérer l'utilisateur
       final response = await http.post(
         Uri.parse('${ApiConfig.baseUrl}/auth/social'),
         headers: ApiConfig.defaultHeaders,
@@ -54,7 +41,6 @@ class AuthService {
           'photoUrl': googleUser.photoUrl,
         }),
       ).timeout(ApiConfig.timeout);
-
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         // Parser seulement le début du JSON (avant les relations circulaires)
@@ -92,8 +78,6 @@ class AuthService {
   /// 2. Suppression de la session locale
   static Future<void> logout() async {
     try {
-      debugPrint('🔓 Starting logout...');
-      
       // 1. Déconnexion Google SDK
       await _googleSignIn.signOut();
       
@@ -119,7 +103,6 @@ class AuthService {
     }
     
     await prefs.setString(_userDataKey, json.encode(userData));
-    debugPrint('💾 Session saved: userId=$userId');
   }
 
   /// Récupérer l'ID utilisateur de la session

@@ -40,6 +40,7 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.13.1
 
 flutter:
   uses-material-design: true
@@ -47,4 +48,11 @@ flutter:
   assets:
     - assets/icons/
     - assets/images/
+
+# Configuration pour générer les icônes de l'application
+flutter_launcher_icons:
+  android: true
+  ios: true  # Support iOS activé
+  image_path: "assets/icons/splash-icon.png"  # Icône de l'application
+  remove_alpha_ios: true  # Supprimer le canal alpha pour iOS (requis pour App Store)
 

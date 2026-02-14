@@ -40,5 +40,18 @@ class BudgetService {
   static Future<void> deleteBudget(String id) async {
     await ApiService.delete('/budgets/$id');
   }
+
+  // Créer plusieurs budgets en une seule transaction
+  static Future<List<Budget>> createBudgetsBatch(List<Map<String, dynamic>> budgetsData) async {
+    final response = await ApiService.post('/budgets/batch', {'budgets': budgetsData});
+    final data = response['data'] as List<dynamic>;
+    return data.map((json) => Budget.fromJson(json as Map<String, dynamic>)).toList();
+  }
+
+  // Supprimer plusieurs budgets en une seule transaction
+  static Future<void> deleteBudgetsBatch(List<String> budgetIds) async {
+    final ids = budgetIds.map((id) => int.tryParse(id) ?? id).toList();
+    await ApiService.delete('/budgets/batch', ids);
+  }
 }
 

@@ -395,8 +395,8 @@ class BudgetProvider extends ChangeNotifier {
   Future<void> loadHomeData({bool forceReload = false}) async {
     if (_currentUser == null) return;
     
-    // Éviter les appels multiples
-    if (_isLoadingHomeData) {
+    // Éviter les appels multiples (sauf si forceReload est true)
+    if (_isLoadingHomeData && !forceReload) {
       return;
     }
     
@@ -405,6 +405,11 @@ class BudgetProvider extends ChangeNotifier {
         _balanceData != null && 
         _homeRecentTransactions.isNotEmpty) {
       return;
+    }
+    
+    // Si forceReload est true, réinitialiser le flag pour permettre le rechargement
+    if (forceReload) {
+      _homeDataLoaded = false;
     }
     
     _isLoadingHomeData = true;

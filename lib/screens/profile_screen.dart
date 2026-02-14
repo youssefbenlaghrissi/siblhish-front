@@ -16,6 +16,7 @@ import '../services/auth_service.dart';
 import 'notifications_screen.dart';
 import '../widgets/skeleton_loader.dart';
 import '../widgets/custom_snackbar.dart';
+import '../widgets/budget_suggestion_wizard.dart';
 
 class ProfileScreen extends StatelessWidget {
   final bool isVisible;
@@ -398,6 +399,36 @@ class _BudgetsSectionState extends State<_BudgetsSection> {
                 ],
               ),
             ],
+          ),
+        ),
+        // Button "Suggérer des budgets"
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+          child: SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () {
+                showModalBottomSheet(
+                  context: context,
+                  isScrollControlled: true,
+                  backgroundColor: Colors.transparent,
+                  builder: (context) => const BudgetSuggestionWizard(),
+                );
+              },
+              icon: const Icon(Icons.auto_awesome_rounded, size: 20),
+              label: Text(
+                'Suggérer des budgets',
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                side: BorderSide(color: AppTheme.primaryColor.withOpacity(0.5)),
+                foregroundColor: AppTheme.primaryColor,
+              ),
+            ),
           ),
         ),
 

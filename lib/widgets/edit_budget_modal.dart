@@ -429,14 +429,20 @@ class _EditBudgetModalState extends State<EditBudgetModal> {
                     ),
                     const SizedBox(height: 20),
 
-                    // Recurring Budget Checkbox (dernier élément avant le bouton) - désactivé
-                    Opacity(
-                      opacity: 0.6,
-                      child: CheckboxListTile(
-                        title: const Text('Budget récurrent'),
-                        value: _isRecurring,
-                        onChanged: null, // Désactivé
-                      ),
+                    // Recurring Budget Checkbox (dernier élément avant le bouton) - modifiable
+                    CheckboxListTile(
+                      title: const Text('Budget récurrent'),
+                      subtitle: const Text('Ce budget sera automatiquement recréé chaque mois'),
+                      value: _isRecurring,
+                      onChanged: _isSubmitting ? null : (value) {
+                        setState(() {
+                          _isRecurring = value ?? false;
+                          // Si on active le récurrent, mettre à jour les dates automatiquement
+                          if (_isRecurring) {
+                            _updateRecurringDates();
+                          }
+                        });
+                      },
                     ),
 
                     // Message informatif quand récurrent est coché

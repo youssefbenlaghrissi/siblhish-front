@@ -11,9 +11,7 @@ import '../widgets/statistics/calendar_chart_widget.dart';
 import '../widgets/statistics/pie_chart_widget.dart';
 import '../widgets/statistics/select_cards_modal.dart';
 import '../widgets/statistics/statistics_card_widgets.dart';
-import '../widgets/statistics/budget_vs_actual_chart_widget.dart';
 import '../widgets/statistics/top_budget_categories_card_widget.dart';
-import '../widgets/statistics/budget_efficiency_card_widget.dart';
 import '../widgets/statistics/budget_distribution_pie_chart_widget.dart';
 import '../models/statistics_card.dart';
 import '../services/favorite_service.dart';
@@ -404,25 +402,8 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
         );
 
       case StatisticsCardType.savingsCard:
-        // Utiliser le champ balance directement depuis l'API (calculé côté backend)
-        // Pour la période sélectionnée, sommer les balances de toutes les périodes
-        double savings = 0.0;
-        if (provider.monthlySummary.isNotEmpty) {
-          // Somme de toutes les balances pour la période sélectionnée
-          savings = provider.monthlySummary.fold<double>(
-            0.0,
-            (sum, item) => sum + item.balance,
-          );
-        }
-        // Si pas de données, afficher 0 (les données seront chargées si nécessaire)
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-          child: SavingsCardWidget(
-            savings: savings,
-            period: _selectedPeriod,
-            selectedDate: _selectedDate,
-          ),
-        );
+        // Graphique désactivé - retourner un widget vide
+        return const SizedBox.shrink();
 
       case StatisticsCardType.averageExpenseCard:
         // Calculer la moyenne des dépenses pour la période sélectionnée
@@ -577,16 +558,8 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
         return const SizedBox.shrink();
 
       case StatisticsCardType.budgetVsActualChart:
-        final dateRange = _calculateDateRange(_selectedPeriod, _selectedDate);
-        final startDate = dateRange['startDate']!;
-        final endDate = dateRange['endDate']!;
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-          child: BudgetVsActualChartWidget(
-            data: provider.budgetVsActual,
-            isLoading: _isLoadingCharts,
-          ),
-        );
+        // Graphique désactivé - retourner un widget vide
+        return const SizedBox.shrink();
 
       case StatisticsCardType.topBudgetCategoriesCard:
         final dateRange = _calculateDateRange(_selectedPeriod, _selectedDate);
@@ -601,17 +574,8 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
         );
 
       case StatisticsCardType.budgetEfficiencyCard:
-        final dateRange = _calculateDateRange(_selectedPeriod, _selectedDate);
-        final startDate = dateRange['startDate']!;
-        final endDate = dateRange['endDate']!;
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-          child: BudgetEfficiencyCardWidget(
-            data: provider.budgetEfficiency,
-            isLoading: _isLoadingCharts,
-          ),
-        );
-
+        // Graphique désactivé - retourner un widget vide
+        return const SizedBox.shrink();
 
       case StatisticsCardType.budgetDistributionPieChart:
         final dateRange = _calculateDateRange(_selectedPeriod, _selectedDate);

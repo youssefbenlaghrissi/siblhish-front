@@ -36,7 +36,11 @@ class _ScheduledPaymentDetailsModalState extends State<ScheduledPaymentDetailsMo
     final dateFormatter = DateFormat('dd MMMM yyyy', 'fr');
     final timeFormatter = DateFormat('HH:mm', 'fr');
     
-    final daysUntilDue = dueDate.difference(DateTime.now()).inDays;
+    // Normaliser les dates à minuit pour comparer uniquement les jours (sans les heures)
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final dueDateNormalized = DateTime(dueDate.year, dueDate.month, dueDate.day);
+    final daysUntilDue = dueDateNormalized.difference(today).inDays;
     final isOverdue = daysUntilDue < 0 && !payment.isPaid;
     final isDueSoon = daysUntilDue <= 3 && daysUntilDue >= 0 && !payment.isPaid;
     final isPaid = payment.isPaid;

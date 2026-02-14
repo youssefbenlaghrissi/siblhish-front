@@ -52,8 +52,18 @@ class _HomeScreenState extends State<HomeScreen> {
     // Si l'écran vient de devenir visible
     if (widget.isVisible && !oldWidget.isVisible) {
       // Marquer HomeScreen comme actif
-      context.read<BudgetProvider>().setActiveScreen('home');
-      // Ne pas charger les données ici, elles sont déjà chargées en arrière-plan par initialize()
+      final provider = context.read<BudgetProvider>();
+      provider.setActiveScreen('home');
+      
+      // Recharger le solde et les transactions récentes quand on revient à l'écran d'accueil
+      // Cela permet de mettre à jour les données après suppression/modification dans l'écran Transactions
+      // Le solde et les transactions récentes seront rechargés via loadHomeData(forceReload: true)
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && widget.isVisible) {
+          provider.loadHomeData(forceReload: true);
+        }
+      });
+      
       _loadUnreadCount();
       _startPeriodicNotificationCheck();
     }
@@ -1498,7 +1508,12 @@ class _ScheduledPaymentCardState extends State<_ScheduledPaymentCard> {
 
   @override
   Widget build(BuildContext context) {
-    final daysUntilDue = widget.payment.dueDate.difference(DateTime.now()).inDays;
+    // Normaliser les dates à minuit pour comparer uniquement les jours (sans les heures)
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final dueDate = widget.payment.dueDate;
+    final dueDateNormalized = DateTime(dueDate.year, dueDate.month, dueDate.day);
+    final daysUntilDue = dueDateNormalized.difference(today).inDays;
     final isOverdue = daysUntilDue < 0 && !widget.payment.isPaid;
     final isDueSoon = daysUntilDue <= 3 && daysUntilDue >= 0 && !widget.payment.isPaid;
     final isPaid = widget.payment.isPaid;
