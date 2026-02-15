@@ -36,7 +36,8 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _unreadNotificationsCount = 0;
-  bool _homeDataLoadScheduled = false; // Flag pour éviter les appels multiples
+  bool _homeDataLoaded = false;
+  bool _isLoadingHomeData = false;
   
   // Filtres (pour l'UI uniquement, le traitement se fait côté backend)
   String? _filterType; // 'income', 'expense', null (tous)
@@ -57,10 +58,9 @@ class _HomeScreenState extends State<HomeScreen> {
       
       // Recharger le solde et les transactions récentes quand on revient à l'écran d'accueil
       // Cela permet de mettre à jour les données après suppression/modification dans l'écran Transactions
-      // Le solde et les transactions récentes seront rechargés via loadHomeData(forceReload: true)
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && widget.isVisible) {
-          provider.loadHomeData(forceReload: true);
+          _reloadHomeData();
         }
       });
       
@@ -82,7 +82,8 @@ class _HomeScreenState extends State<HomeScreen> {
         if (mounted && widget.isVisible) {
           // Marquer HomeScreen comme actif
           context.read<BudgetProvider>().setActiveScreen('home');
-          // Ne pas charger les données ici, elles sont déjà chargées en arrière-plan par initialize()
+          // Charger les données si nécessaire
+          _loadHomeDataIfNeeded();
           _loadUnreadCount();
           _startPeriodicNotificationCheck();
         }
@@ -91,26 +92,54 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadHomeDataIfNeeded() async {
-    // Éviter les appels multiples en utilisant le flag du provider
+    if (_isLoadingHomeData) return;
+    
     final provider = context.read<BudgetProvider>();
-    if (provider.currentUser != null && !provider.isLoadingHomeData && !_homeDataLoadScheduled) {
-      // Vérifier si les données sont déjà chargées (balance et transactions récentes)
-      final hasData = provider.balanceData != null && provider.homeRecentTransactions.isNotEmpty;
-      if (hasData) {
-        // Les données sont déjà chargées, ne pas recharger
-        return;
-      }
-      
-      _homeDataLoadScheduled = true;
+    if (!_homeDataLoaded && provider.currentUser != null) {
+      _isLoadingHomeData = true;
       try {
         await provider.loadHomeData();
-      } finally {
-        // Réinitialiser le flag après le chargement (réussi ou échoué)
-        Future.delayed(const Duration(milliseconds: 500), () {
-          if (mounted) {
-            _homeDataLoadScheduled = false;
-          }
-        });
+        if (mounted) {
+          setState(() {
+            _homeDataLoaded = true;
+            _isLoadingHomeData = false;
+          });
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() => _isLoadingHomeData = false);
+        }
+      }
+    }
+  }
+
+  Future<void> _reloadHomeData() async {
+    if (_isLoadingHomeData) return;
+    
+    final provider = context.read<BudgetProvider>();
+    if (provider.currentUser != null) {
+      // Réinitialiser _homeDataLoaded pour afficher le skeleton pendant le rechargement
+      setState(() {
+        _isLoadingHomeData = true;
+        _homeDataLoaded = false; // Important : réinitialiser pour afficher le skeleton
+      });
+      
+      try {
+        // Recharger toujours les données depuis le backend
+        await provider.loadHomeData(forceReload: true);
+        if (mounted) {
+          setState(() {
+            _homeDataLoaded = true;
+            _isLoadingHomeData = false;
+          });
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() {
+            _isLoadingHomeData = false;
+            // Garder _homeDataLoaded = false en cas d'erreur pour permettre un nouveau chargement
+          });
+        }
       }
     }
   }
@@ -136,10 +165,15 @@ class _HomeScreenState extends State<HomeScreen> {
   Timer? _notificationCheckTimer;
 
   void _startPeriodicNotificationCheck() {
-    // Vérifier toutes les 30 secondes
-    _notificationCheckTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
+    // Arrêter le timer existant s'il y en a un
+    _stopPeriodicNotificationCheck();
+    
+    // Démarrer le timer en continu, même si les notifications sont désactivées
+    // Car l'utilisateur peut voir les notifications dans l'app même si les push sont désactivées
+    _notificationCheckTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
       _checkForNewNotifications();
     });
+    debugPrint('📱 Timer de vérification des notifications démarré (toutes les 10 secondes)');
   }
 
   void _stopPeriodicNotificationCheck() {
@@ -153,12 +187,8 @@ class _HomeScreenState extends State<HomeScreen> {
       final userId = provider.currentUser?.id;
       if (userId == null) return;
 
-      // Vérifier si les notifications sont activées (pour la vérification périodique)
-      if (_notificationCheckTimer != null && 
-          provider.currentUser?.notificationsEnabled != true) {
-        return;
-      }
-
+      // TOUJOURS charger le nombre de notifications, même si désactivées
+      // Car l'utilisateur peut voir les notifications dans l'app même si les push sont désactivées
       final count = await NotificationService.getUnreadCount(userId);
       if (mounted) {
         setState(() {
@@ -166,6 +196,7 @@ class _HomeScreenState extends State<HomeScreen> {
         });
       }
     } catch (e) {
+      // Ignorer les erreurs silencieusement
     }
   }
 
@@ -658,7 +689,7 @@ class _HomeScreenState extends State<HomeScreen> {
             }
             
             final userName = provider.currentUser!.firstName;
-            final isLoading = provider.isLoadingHomeData;
+            final isLoading = _isLoadingHomeData || !_homeDataLoaded;
             
             // Utiliser les transactions récentes de la page d'accueil (toujours limit=3, indépendantes des filtres)
             final recentTransactions = provider.homeRecentTransactions;

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:provider/provider.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../providers/budget_provider.dart';
 import '../models/expense.dart';
@@ -72,6 +71,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       });
     }
   }
+
 
   @override
   void didUpdateWidget(TransactionsScreen oldWidget) {
@@ -512,18 +512,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                                 .where((Category c) => c.id == transaction.categoryId)
                                 .firstOrNull
                             : null,
-                      )
-                          .animate()
-                          .fadeIn(
-                            duration: 300.ms,
-                            delay: (index * 30).ms,
-                          )
-                          .slideX(
-                            begin: 0.2,
-                            end: 0,
-                            duration: 300.ms,
-                            delay: (index * 30).ms,
-                          ),
+                      ),
                     );
                   },
                 );

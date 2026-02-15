@@ -140,6 +140,14 @@ class HomeService {
             date: transactionDate,
             description: jsonMap['description'] as String?,
             location: jsonMap['location'] as String?,
+            isRecurring: jsonMap['isRecurring'] ?? false,
+            recurrenceFrequency: jsonMap['recurrenceFrequency'],
+            recurrenceEndDate: jsonMap['recurrenceEndDate'] != null 
+                ? DateTime.parse(jsonMap['recurrenceEndDate'])
+                : null,
+            recurrenceDaysOfWeek: _parseRecurrenceDaysOfWeek(jsonMap['recurrenceDaysOfWeek']),
+            recurrenceDayOfMonth: jsonMap['recurrenceDayOfMonth'],
+            recurrenceDayOfYear: jsonMap['recurrenceDayOfYear'],
             userId: '0',
             categoryId: categoryId,
             category: category,
@@ -172,6 +180,14 @@ class HomeService {
             date: transactionDate,
             description: jsonMap['description'] as String?,
             source: jsonMap['source'] as String?,
+            isRecurring: jsonMap['isRecurring'] ?? false,
+            recurrenceFrequency: jsonMap['recurrenceFrequency'],
+            recurrenceEndDate: jsonMap['recurrenceEndDate'] != null 
+                ? DateTime.parse(jsonMap['recurrenceEndDate'])
+                : null,
+            recurrenceDaysOfWeek: _parseRecurrenceDaysOfWeek(jsonMap['recurrenceDaysOfWeek']),
+            recurrenceDayOfMonth: jsonMap['recurrenceDayOfMonth'],
+            recurrenceDayOfYear: jsonMap['recurrenceDayOfYear'],
             userId: '0',
           ));
         }
@@ -183,6 +199,28 @@ class HomeService {
     
     
     return transactions;
+  }
+
+  // Helper pour parser recurrenceDaysOfWeek (peut être une liste ou une chaîne)
+  static List<int>? _parseRecurrenceDaysOfWeek(dynamic value) {
+    if (value == null) return null;
+    
+    // Si c'est déjà une liste
+    if (value is List) {
+      return value.map((e) => e is int ? e : int.tryParse(e.toString())).whereType<int>().toList();
+    }
+    
+    // Si c'est une chaîne (depuis STRING_AGG), la parser
+    if (value is String) {
+      if (value.isEmpty) return null;
+      try {
+        return value.split(',').map((e) => int.tryParse(e.trim())).whereType<int>().toList();
+      } catch (e) {
+        return null;
+      }
+    }
+    
+    return null;
   }
 }
 

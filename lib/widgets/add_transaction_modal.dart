@@ -37,6 +37,7 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
   int? _recurrenceDayOfYear;
 
   final _uuid = const Uuid();
+  bool _hasAttemptedSubmit = false;
 
   @override
   void initState() {
@@ -102,6 +103,10 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
   bool _isSubmitting = false;
 
   Future<void> _submit() async {
+    setState(() {
+      _hasAttemptedSubmit = true;
+    });
+    
     if (!_formKey.currentState!.validate() || _isSubmitting) return;
 
     setState(() {
@@ -246,7 +251,9 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
               padding: const EdgeInsets.all(20),
               child: Form(
                 key: _formKey,
-                autovalidateMode: AutovalidateMode.disabled,
+                autovalidateMode: _hasAttemptedSubmit 
+                    ? AutovalidateMode.onUserInteraction 
+                    : AutovalidateMode.disabled,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -259,6 +266,11 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
                         prefixIcon: Icon(Icons.attach_money_rounded),
                       ),
                       keyboardType: TextInputType.number,
+                      onChanged: (_) {
+                        if (_hasAttemptedSubmit) {
+                          _formKey.currentState!.validate();
+                        }
+                      },
                       validator: (value) {
                         if (value == null || value.isEmpty) {
                           return 'Veuillez entrer un montant';
@@ -300,6 +312,9 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
                           setState(() {
                             _selectedCategoryId = value;
                           });
+                          if (_hasAttemptedSubmit) {
+                            _formKey.currentState!.validate();
+                          }
                         },
                         validator: (value) {
                           if (value == null) {

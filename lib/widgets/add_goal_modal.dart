@@ -24,6 +24,7 @@ class _AddGoalModalState extends State<AddGoalModal> {
   models.Category? _selectedCategory;
 
   final _uuid = const Uuid();
+  bool _hasAttemptedSubmit = false;
 
   @override
   void dispose() {
@@ -50,6 +51,10 @@ class _AddGoalModalState extends State<AddGoalModal> {
   bool _isSubmitting = false;
 
   Future<void> _submit() async {
+    setState(() {
+      _hasAttemptedSubmit = true;
+    });
+    
     if (!_formKey.currentState!.validate() || _isSubmitting) return;
 
     setState(() {
@@ -148,6 +153,9 @@ class _AddGoalModalState extends State<AddGoalModal> {
               padding: const EdgeInsets.all(20),
               child: Form(
                 key: _formKey,
+                autovalidateMode: _hasAttemptedSubmit 
+                    ? AutovalidateMode.onUserInteraction 
+                    : AutovalidateMode.disabled,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -158,6 +166,11 @@ class _AddGoalModalState extends State<AddGoalModal> {
                         labelText: 'Nom de l\'objectif',
                         prefixIcon: Icon(Icons.flag_rounded),
                       ),
+                      onChanged: (_) {
+                        if (_hasAttemptedSubmit) {
+                          _formKey.currentState!.validate();
+                        }
+                      },
                       validator: (value) {
                         if (value == null || value.isEmpty) {
                           return 'Veuillez entrer un nom';
@@ -232,6 +245,11 @@ class _AddGoalModalState extends State<AddGoalModal> {
                         prefixIcon: Icon(Icons.attach_money_rounded),
                       ),
                       keyboardType: TextInputType.number,
+                      onChanged: (_) {
+                        if (_hasAttemptedSubmit) {
+                          _formKey.currentState!.validate();
+                        }
+                      },
                       validator: (value) {
                         if (value == null || value.isEmpty) {
                           return 'Veuillez entrer un montant';

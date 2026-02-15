@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -287,6 +288,19 @@ class _TransactionDetailsModalState extends State<TransactionDetailsModal> {
                       ),
                     ),
 
+                  // Recurrence Information (toujours afficher)
+                  _DetailRow(
+                    icon: Icons.repeat_rounded,
+                    label: 'Récurrence',
+                    value: Text(
+                      _getRecurrenceDescription(transaction),
+                      style: GoogleFonts.poppins(
+                        fontSize: 16,
+                        color: AppTheme.textPrimary,
+                      ),
+                    ),
+                  ),
+
                   const SizedBox(height: 24),
 
                   // Action Buttons
@@ -346,6 +360,7 @@ class _TransactionDetailsModalState extends State<TransactionDetailsModal> {
   void _handleDelete(BuildContext context) async {
     final provider = context.read<BudgetProvider>();
     final isIncome = widget.transaction is Income;
+    final transaction = widget.transaction;
     
     final confirm = await showDialog<bool>(
       context: context,
@@ -357,9 +372,57 @@ class _TransactionDetailsModalState extends State<TransactionDetailsModal> {
           'Supprimer la transaction',
           style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
         ),
-        content: Text(
-          'Êtes-vous sûr de vouloir supprimer cette ${isIncome ? 'revenu' : 'dépense'} ?',
-          style: GoogleFonts.poppins(),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Êtes-vous sûr de vouloir supprimer cette ${isIncome ? 'revenu' : 'dépense'} ?',
+                style: GoogleFonts.poppins(),
+              ),
+              if (transaction.isRecurring) ...[
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.repeat_rounded,
+                            color: AppTheme.primaryColor,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Transaction récurrente',
+                            style: GoogleFonts.poppins(
+                              fontWeight: FontWeight.w600,
+                              color: AppTheme.primaryColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        _getDetailedRecurrenceDescription(transaction),
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          color: AppTheme.textPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
         ),
         actions: [
           TextButton(
@@ -464,6 +527,124 @@ class _TransactionDetailsModalState extends State<TransactionDetailsModal> {
       default:
         return method;
     }
+  }
+
+  String _getRecurrenceDescription(dynamic transaction) {
+    // Debug pour vérifier les données
+    debugPrint('🔍 Transaction récurrence - isRecurring: ${transaction.isRecurring}, frequency: ${transaction.recurrenceFrequency}');
+    
+    if (!transaction.isRecurring || transaction.recurrenceFrequency == null) {
+      return 'Non récurrente';
+    }
+
+    final frequency = transaction.recurrenceFrequency;
+    final endDate = transaction.recurrenceEndDate;
+    final daysOfWeek = transaction.recurrenceDaysOfWeek;
+    final dayOfMonth = transaction.recurrenceDayOfMonth;
+    final dayOfYear = transaction.recurrenceDayOfYear;
+
+    String description = '';
+
+    switch (frequency) {
+      case 'DAILY':
+        description = 'Quotidien';
+        break;
+      case 'WEEKLY':
+        if (daysOfWeek != null && daysOfWeek.isNotEmpty) {
+          final weekDays = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+          final days = daysOfWeek.map((d) => weekDays[d - 1]).join(', ');
+          description = 'Hebdomadaire ($days)';
+        } else {
+          description = 'Hebdomadaire';
+        }
+        break;
+      case 'MONTHLY':
+        if (dayOfMonth != null) {
+          description = 'Mensuel (jour $dayOfMonth)';
+        } else {
+          description = 'Mensuel';
+        }
+        break;
+      case 'YEARLY':
+        if (dayOfYear != null) {
+          final currentYear = DateTime.now().year;
+          final date = DateTime(currentYear, 1, 1).add(Duration(days: dayOfYear - 1));
+          description = 'Annuel (${date.day}/${date.month})';
+        } else {
+          description = 'Annuel';
+        }
+        break;
+      default:
+        return 'Récurrente';
+    }
+
+    if (endDate != null) {
+      final dateFormatter = DateFormat('dd/MM/yyyy', 'fr');
+      description += ' jusqu\'au ${dateFormatter.format(endDate)}';
+    } else {
+      description += ' (toujours)';
+    }
+
+    return description;
+  }
+
+  String _getDetailedRecurrenceDescription(dynamic transaction) {
+    if (!transaction.isRecurring || transaction.recurrenceFrequency == null) {
+      return '';
+    }
+
+    final frequency = transaction.recurrenceFrequency;
+    final endDate = transaction.recurrenceEndDate;
+    final daysOfWeek = transaction.recurrenceDaysOfWeek;
+    final dayOfMonth = transaction.recurrenceDayOfMonth;
+    final dayOfYear = transaction.recurrenceDayOfYear;
+
+    String description = '';
+
+    switch (frequency) {
+      case 'DAILY':
+        description = 'Cette transaction se répète chaque jour';
+        break;
+      case 'WEEKLY':
+        if (daysOfWeek != null && daysOfWeek.isNotEmpty) {
+          final weekDays = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
+          final days = daysOfWeek.map((d) => weekDays[d - 1]).join(', ');
+          description = 'Cette transaction se répète chaque $days';
+        } else {
+          description = 'Cette transaction se répète chaque semaine';
+        }
+        break;
+      case 'MONTHLY':
+        if (dayOfMonth != null) {
+          description = 'Cette transaction se répète le $dayOfMonth de chaque mois';
+        } else {
+          description = 'Cette transaction se répète chaque mois';
+        }
+        break;
+      case 'YEARLY':
+        if (dayOfYear != null) {
+          final currentYear = DateTime.now().year;
+          final date = DateTime(currentYear, 1, 1).add(Duration(days: dayOfYear - 1));
+          final dateFormatter = DateFormat('dd MMMM', 'fr');
+          description = 'Cette transaction se répète le ${dateFormatter.format(date)} de chaque année';
+        } else {
+          description = 'Cette transaction se répète chaque année';
+        }
+        break;
+      default:
+        return 'Transaction récurrente';
+    }
+
+    if (endDate != null) {
+      final dateFormatter = DateFormat('dd MMMM yyyy', 'fr');
+      description += ' jusqu\'au ${dateFormatter.format(endDate)}';
+    } else {
+      description += ' indéfiniment';
+    }
+
+    description += '.';
+
+    return description;
   }
 }
 

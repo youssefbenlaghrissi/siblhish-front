@@ -10,6 +10,8 @@ import 'firebase_options.dart';
 import 'firebase_messaging_handler.dart';
 import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
+import 'screens/login_email_screen.dart';
+import 'screens/register_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/statistics_screen.dart';
 import 'screens/goals_screen.dart';
@@ -68,6 +70,8 @@ class SiblhishApp extends StatelessWidget {
         routes: {
           '/': (context) => const SplashScreen(),
           '/login': (context) => const LoginScreen(),
+          '/login-email': (context) => const LoginEmailScreen(),
+          '/register': (context) => const RegisterScreen(),
           '/main': (context) => MainScreen(key: MainScreen.navigatorKey),
         },
       ),

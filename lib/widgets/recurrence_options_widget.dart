@@ -34,8 +34,8 @@ class _RecurrenceOptionsWidgetState extends State<RecurrenceOptionsWidget> {
   late String _recurrenceType; // 'always' ou 'until'
   DateTime? _endDate;
   late List<int> _selectedDaysOfWeek; // 1=Monday, 7=Sunday
-  int? _dayOfMonth;
-  int? _dayOfYear;
+  late int _dayOfMonth;
+  late int _dayOfYear;
 
   final List<String> _weekDays = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 
@@ -45,8 +45,14 @@ class _RecurrenceOptionsWidgetState extends State<RecurrenceOptionsWidget> {
     _recurrenceType = widget.initialEndDate != null ? 'until' : 'always';
     _endDate = widget.initialEndDate;
     _selectedDaysOfWeek = widget.initialDaysOfWeek ?? [];
-    _dayOfMonth = widget.initialDayOfMonth;
-    _dayOfYear = widget.initialDayOfYear;
+    _dayOfMonth = widget.initialDayOfMonth ?? DateTime.now().day;
+    if (widget.initialDayOfYear != null) {
+      _dayOfYear = widget.initialDayOfYear!;
+    } else {
+      final now = DateTime.now();
+      final startOfYear = DateTime(now.year, 1, 1);
+      _dayOfYear = now.difference(startOfYear).inDays + 1;
+    }
   }
 
   String _formatDayOfYear(int dayOfYear) {
@@ -73,19 +79,10 @@ class _RecurrenceOptionsWidgetState extends State<RecurrenceOptionsWidget> {
         }
         break;
       case 'MONTHLY':
-        if (_dayOfMonth != null) {
-          description = 'Cette transaction sera créée automatiquement le ${_dayOfMonth} de chaque mois';
-        } else {
-          description = 'Cette transaction sera créée automatiquement chaque mois';
-        }
+        description = 'Cette transaction sera créée automatiquement le $_dayOfMonth de chaque mois';
         break;
       case 'YEARLY':
-        if (_dayOfYear != null) {
-          final dayOfYear = _dayOfYear!;
-          description = 'Cette transaction sera créée automatiquement le ${_formatDayOfYear(dayOfYear)} de chaque année';
-        } else {
-          description = 'Cette transaction sera créée automatiquement chaque année';
-        }
+        description = 'Cette transaction sera créée automatiquement le ${_formatDayOfYear(_dayOfYear)} de chaque année';
         break;
       default:
         return '';
@@ -260,26 +257,79 @@ class _RecurrenceOptionsWidgetState extends State<RecurrenceOptionsWidget> {
 
         if (widget.frequency == 'MONTHLY') ...[
           const SizedBox(height: 20),
-          CheckboxListTile(
-            title: const Text('Le même jour chaque mois'),
-            value: _dayOfMonth != null,
-            onChanged: (value) {
-              setState(() {
-                if (value == true) {
-                  _dayOfMonth = DateTime.now().day;
-                  widget.onDayOfMonthChanged(_dayOfMonth);
-                } else {
-                  _dayOfMonth = null;
-                  widget.onDayOfMonthChanged(null);
-                }
-              });
-            },
-            contentPadding: EdgeInsets.zero,
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: AppTheme.primaryColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '$_dayOfMonth',
+                  style: GoogleFonts.poppins(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.remove_circle_outline),
+                      onPressed: _dayOfMonth > 1
+                          ? () {
+                              setState(() {
+                                _dayOfMonth = _dayOfMonth - 1;
+                                widget.onDayOfMonthChanged(_dayOfMonth);
+                              });
+                            }
+                          : null,
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.add_circle_outline),
+                      onPressed: _dayOfMonth < 31
+                          ? () {
+                              setState(() {
+                                _dayOfMonth = _dayOfMonth + 1;
+                                widget.onDayOfMonthChanged(_dayOfMonth);
+                              });
+                            }
+                          : null,
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
-          if (_dayOfMonth != null) ...[
-            const SizedBox(height: 10),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        ],
+
+        if (widget.frequency == 'YEARLY') ...[
+          const SizedBox(height: 20),
+          InkWell(
+            onTap: () async {
+              // Convertir le jour de l'année en date pour le sélecteur
+              final currentYear = DateTime.now().year;
+              final selectedDate = DateTime(currentYear, 1, 1)
+                  .add(Duration(days: _dayOfYear - 1));
+              
+              final picked = await showDatePicker(
+                context: context,
+                initialDate: selectedDate,
+                firstDate: DateTime(currentYear, 1, 1),
+                lastDate: DateTime(currentYear, 12, 31),
+              );
+              if (picked != null) {
+                final startOfYear = DateTime(picked.year, 1, 1);
+                final newDayOfYear = picked.difference(startOfYear).inDays + 1;
+                setState(() {
+                  _dayOfYear = newDayOfYear;
+                  widget.onDayOfYearChanged(_dayOfYear);
+                });
+              }
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
               decoration: BoxDecoration(
                 color: AppTheme.primaryColor.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
@@ -288,111 +338,17 @@ class _RecurrenceOptionsWidgetState extends State<RecurrenceOptionsWidget> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Jour du mois: $_dayOfMonth',
+                    _formatDayOfYear(_dayOfYear),
                     style: GoogleFonts.poppins(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                  Row(
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.remove_circle_outline),
-                        onPressed: _dayOfMonth! > 1
-                            ? () {
-                                setState(() {
-                                  _dayOfMonth = _dayOfMonth! - 1;
-                                  widget.onDayOfMonthChanged(_dayOfMonth);
-                                });
-                              }
-                            : null,
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.add_circle_outline),
-                        onPressed: _dayOfMonth! < 31
-                            ? () {
-                                setState(() {
-                                  _dayOfMonth = _dayOfMonth! + 1;
-                                  widget.onDayOfMonthChanged(_dayOfMonth);
-                                });
-                              }
-                            : null,
-                      ),
-                    ],
-                  ),
+                  const Icon(Icons.calendar_today_rounded, size: 20),
                 ],
               ),
             ),
-          ],
-        ],
-
-        if (widget.frequency == 'YEARLY') ...[
-          const SizedBox(height: 20),
-          CheckboxListTile(
-            title: const Text('Le même jour chaque année'),
-            value: _dayOfYear != null,
-            onChanged: (value) {
-              setState(() {
-                if (value == true) {
-                  // Utiliser la date actuelle comme référence
-                  final now = DateTime.now();
-                  final startOfYear = DateTime(now.year, 1, 1);
-                  _dayOfYear = now.difference(startOfYear).inDays + 1;
-                  widget.onDayOfYearChanged(_dayOfYear);
-                } else {
-                  _dayOfYear = null;
-                  widget.onDayOfYearChanged(null);
-                }
-              });
-            },
-            contentPadding: EdgeInsets.zero,
           ),
-          if (_dayOfYear != null) ...[
-            const SizedBox(height: 10),
-            InkWell(
-              onTap: () async {
-                // Convertir le jour de l'année en date pour le sélecteur
-                final currentYear = DateTime.now().year;
-                final selectedDate = DateTime(currentYear, 1, 1)
-                    .add(Duration(days: _dayOfYear! - 1));
-                
-                final picked = await showDatePicker(
-                  context: context,
-                  initialDate: selectedDate,
-                  firstDate: DateTime(currentYear, 1, 1),
-                  lastDate: DateTime(currentYear, 12, 31),
-                );
-                if (picked != null) {
-                  final startOfYear = DateTime(picked.year, 1, 1);
-                  final newDayOfYear = picked.difference(startOfYear).inDays + 1;
-                  setState(() {
-                    _dayOfYear = newDayOfYear;
-                    widget.onDayOfYearChanged(_dayOfYear);
-                  });
-                }
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                decoration: BoxDecoration(
-                  color: AppTheme.primaryColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Date: ${_formatDayOfYear(_dayOfYear!)}',
-                      style: GoogleFonts.poppins(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const Icon(Icons.calendar_today_rounded, size: 20),
-                  ],
-                ),
-              ),
-            ),
-          ],
         ],
       ],
     );

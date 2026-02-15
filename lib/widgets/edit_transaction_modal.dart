@@ -41,6 +41,7 @@ class _EditTransactionModalState extends State<EditTransactionModal> {
   int? _recurrenceDayOfYear;
 
   bool _isSubmitting = false;
+  bool _hasAttemptedSubmit = false;
 
   @override
   void initState() {
@@ -183,6 +184,10 @@ class _EditTransactionModalState extends State<EditTransactionModal> {
   }
 
   Future<void> _submit() async {
+    setState(() {
+      _hasAttemptedSubmit = true;
+    });
+    
     if (!_formKey.currentState!.validate() || _isSubmitting) return;
 
     setState(() {
@@ -194,22 +199,8 @@ class _EditTransactionModalState extends State<EditTransactionModal> {
       final amount = double.parse(_amountController.text);
       final isIncome = widget.transaction is Income;
 
-      // Utiliser la date sélectionnée (avec l'heure actuelle si pas d'heure spécifique)
+      // Utiliser directement la date et l'heure sélectionnées par l'utilisateur
       DateTime finalDate = _selectedDate;
-      
-      // Si la date sélectionnée n'a pas d'heure (00:00:00), utiliser l'heure actuelle
-      if (_selectedDate.hour == 0 && _selectedDate.minute == 0 && _selectedDate.second == 0) {
-        final now = DateTime.now();
-        finalDate = DateTime(
-          _selectedDate.year,
-          _selectedDate.month,
-          _selectedDate.day,
-          now.hour,
-          now.minute,
-          now.second,
-        );
-      }
-      
 
       if (isIncome) {
         final income = Income(
@@ -349,7 +340,9 @@ class _EditTransactionModalState extends State<EditTransactionModal> {
               padding: const EdgeInsets.all(20),
               child: Form(
                 key: _formKey,
-                autovalidateMode: AutovalidateMode.disabled,
+                autovalidateMode: _hasAttemptedSubmit 
+                    ? AutovalidateMode.onUserInteraction 
+                    : AutovalidateMode.disabled,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -362,6 +355,11 @@ class _EditTransactionModalState extends State<EditTransactionModal> {
                         prefixIcon: Icon(Icons.attach_money_rounded),
                       ),
                       keyboardType: TextInputType.number,
+                      onChanged: (_) {
+                        if (_hasAttemptedSubmit) {
+                          _formKey.currentState!.validate();
+                        }
+                      },
                       validator: (value) {
                         if (value == null || value.isEmpty) {
                           return 'Veuillez entrer un montant';
@@ -403,6 +401,9 @@ class _EditTransactionModalState extends State<EditTransactionModal> {
                           setState(() {
                             _selectedCategoryId = value;
                           });
+                          if (_hasAttemptedSubmit) {
+                            _formKey.currentState!.validate();
+                          }
                         },
                         validator: (value) {
                           if (value == null) {

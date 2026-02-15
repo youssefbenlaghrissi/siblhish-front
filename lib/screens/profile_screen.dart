@@ -13,6 +13,7 @@ import '../widgets/edit_budget_modal.dart';
 import '../widgets/edit_category_color_modal.dart';
 import '../utils/color_utils.dart';
 import '../services/auth_service.dart';
+import '../services/user_service.dart';
 import '../widgets/skeleton_loader.dart';
 import '../widgets/custom_snackbar.dart';
 import '../widgets/budget_suggestion_wizard.dart';
@@ -1076,6 +1077,90 @@ class _SettingsCard extends StatelessWidget {
           ),
           const Divider(),
           _SettingItem(
+            icon: Icons.delete_forever_rounded,
+            title: 'Supprimer',
+            subtitle: 'Supprimer le compte et toutes les données',
+            onTap: () async {
+              // Afficher une boîte de dialogue de confirmation avec avertissement
+              final confirmed = await showDialog<bool>(
+                context: context,
+                builder: (context) => _DeleteAccountDialog(),
+              );
+
+              if (confirmed == true && context.mounted) {
+                try {
+                  final provider = Provider.of<BudgetProvider>(context, listen: false);
+                  final userId = provider.currentUser?.id;
+                  
+                  if (userId == null) {
+                    throw Exception('Utilisateur non connecté');
+                  }
+
+                  // Afficher un indicateur de chargement
+                  showDialog(
+                    context: context,
+                    barrierDismissible: false,
+                    builder: (context) => const Center(
+                      child: CircularProgressIndicator(),
+                    ),
+                  );
+
+                  // Supprimer le compte via l'API
+                  await UserService.deleteAccount(userId);
+                  
+                  // Nettoyer les données du provider
+                  provider.clearAllData();
+                  
+                  // Déconnexion Google et suppression de la session
+                  await AuthService.logout();
+                  
+                  // Fermer le dialog de chargement
+                  if (context.mounted) {
+                    Navigator.of(context).pop();
+                  }
+                  
+                  // Naviguer vers l'écran de connexion
+                  if (context.mounted) {
+                    Navigator.of(context).pushNamedAndRemoveUntil(
+                      '/login',
+                      (route) => false,
+                    );
+                    
+                    // Afficher un message de confirmation
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      CustomSnackBar.success(
+                        title: 'Compte supprimé',
+                        description: 'Votre compte et toutes vos données ont été supprimés avec succès',
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  // Fermer le dialog de chargement s'il est ouvert
+                  if (context.mounted) {
+                    Navigator.of(context).pop();
+                  }
+                  
+                  if (context.mounted) {
+                    // Extraire uniquement le message d'erreur (sans "Exception: ")
+                    String errorMessage = e.toString();
+                    if (errorMessage.startsWith('Exception: ')) {
+                      errorMessage = errorMessage.substring(11);
+                    }
+                    
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(errorMessage),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
+              }
+            },
+            isDestructive: true,
+          ),
+          const Divider(),
+          _SettingItem(
             icon: Icons.logout_rounded,
             title: 'Déconnexion',
             subtitle: 'Se déconnecter de votre compte',
@@ -1214,6 +1299,73 @@ class _SettingItem extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _DeleteAccountDialog extends StatelessWidget {
+  const _DeleteAccountDialog();
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(
+        'Supprimer mon compte',
+        style: GoogleFonts.poppins(
+          fontWeight: FontWeight.bold,
+          color: Colors.red,
+        ),
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Êtes-vous sûr de vouloir supprimer votre compte ?',
+            style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Cette action supprimera définitivement :',
+            style: GoogleFonts.poppins(),
+          ),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.only(left: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('• Toutes vos transactions', style: GoogleFonts.poppins(fontSize: 14)),
+                Text('• Tous vos budgets', style: GoogleFonts.poppins(fontSize: 14)),
+                Text('• Tous vos objectifs', style: GoogleFonts.poppins(fontSize: 14)),
+                Text('• Toutes vos catégories', style: GoogleFonts.poppins(fontSize: 14)),
+                Text('• Toutes vos données personnelles', style: GoogleFonts.poppins(fontSize: 14)),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Cette action est irréversible.',
+            style: GoogleFonts.poppins(
+              fontWeight: FontWeight.w600,
+              color: Colors.red,
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Annuler'),
+        ),
+        ElevatedButton(
+          onPressed: () => Navigator.pop(context, true),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.red,
+          ),
+          child: const Text('Supprimer'),
+        ),
+      ],
     );
   }
 }

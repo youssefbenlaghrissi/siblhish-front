@@ -286,7 +286,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
                             child: Column(
                               children: [
                                 Icon(
-                                  Icons.savings_rounded,
+                                  Icons.flag_rounded,
                                   size: 64,
                                   color: Colors.grey[300],
                                 ),
@@ -616,31 +616,33 @@ class _GoalCard extends StatelessWidget {
                 ),
             ],
           ),
-          if (goal.targetDate != null) ...[
+          // Ligne avec date cible (si présente) et boutons edit/delete
+          if (!isAchieved) ...[
             const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      Icons.calendar_today_rounded,
-                      size: 14,
-                      color: AppTheme.textSecondary,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Objectif: ${DateFormat('dd MMM yyyy', 'fr').format(goal.targetDate!)}',
-                      style: GoogleFonts.poppins(
-                        fontSize: 12,
+            if (goal.targetDate != null)
+              // Cas 1 : Avec date cible - Date à gauche, boutons à droite
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.calendar_today_rounded,
+                        size: 14,
                         color: AppTheme.textSecondary,
                       ),
-                    ),
-                  ],
-                ),
-                // Icônes modifier et supprimer à droite (seulement pour les objectifs non atteints)
-                if (!isAchieved)
+                      const SizedBox(width: 4),
+                      Text(
+                        'Objectif: ${DateFormat('dd MMM yyyy', 'fr').format(goal.targetDate!)}',
+                        style: GoogleFonts.poppins(
+                          fontSize: 12,
+                          color: AppTheme.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  // Icônes modifier et supprimer à droite
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -668,8 +670,37 @@ class _GoalCard extends StatelessWidget {
                       ),
                     ],
                   ),
-              ],
-            ),
+                ],
+              )
+            else
+              // Cas 2 : Sans date cible - Boutons au centre
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.edit_rounded, size: 20),
+                    color: AppTheme.textSecondary,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    onPressed: () {
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        backgroundColor: Colors.transparent,
+                        builder: (context) => EditGoalModal(goal: goal),
+                      );
+                    },
+                  ),
+                  const SizedBox(width: 4),
+                  IconButton(
+                    icon: const Icon(Icons.delete_rounded, size: 20),
+                    color: AppTheme.expenseColor,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    onPressed: () => _showDeleteConfirmationDialog(context, goal, provider),
+                  ),
+                ],
+              ),
           ],
           const SizedBox(height: 12),
           // Ligne d'actions pour les objectifs atteints

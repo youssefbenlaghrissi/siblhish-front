@@ -30,6 +30,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
   bool _statisticsDataLoaded = false;
   bool _isLoadingStatistics = false;
   bool _isLoadingCharts = false;
+  bool _isUpdatingCards = false; // État pour gérer le spinner lors de la mise à jour des cartes
   List<Map<String, dynamic>> _cardFavorites = [];
   String _selectedPeriod = 'monthly'; // Période par défaut : mensuel
   DateTime _selectedDate = DateTime.now(); // Date sélectionnée pour la navigation
@@ -273,6 +274,11 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     );
 
     if (selectedCards != null && selectedCards.isNotEmpty) {
+      // Afficher le spinner
+      setState(() {
+        _isUpdatingCards = true;
+      });
+
       try {
         await provider.updateStatisticsCardsPreferences(selectedCards);
         
@@ -306,7 +312,9 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
         }
         
         if (mounted) {
-          setState(() {}); // Rafraîchir l'UI
+          setState(() {
+            _isUpdatingCards = false;
+          }); // Rafraîchir l'UI
           ScaffoldMessenger.of(context).showSnackBar(
             CustomSnackBar.success(
               title: 'Cartes mises à jour avec succès',
@@ -317,6 +325,9 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
       } catch (e) {
         // Afficher l'erreur
         if (mounted) {
+          setState(() {
+            _isUpdatingCards = false;
+          });
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Erreur: ${e.toString()}'),
@@ -851,13 +862,23 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                     child: OutlinedButton.icon(
-                      onPressed: _handleSelectCards,
-                      icon: const Icon(Icons.add_rounded),
-                      label: const Text('Ajouter d\'autres cartes'),
+                      onPressed: _isUpdatingCards ? null : _handleSelectCards,
+                      icon: _isUpdatingCards
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryColor),
+                              ),
+                            )
+                          : const Icon(Icons.add_rounded),
+                      label: Text(_isUpdatingCards ? 'Mise à jour...' : 'Ajouter d\'autres cartes'),
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         side: BorderSide(color: AppTheme.primaryColor),
                         foregroundColor: AppTheme.primaryColor,
+                        disabledForegroundColor: Colors.grey[400],
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),

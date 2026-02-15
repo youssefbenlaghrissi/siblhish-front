@@ -4,6 +4,31 @@ import 'package:http/http.dart' as http;
 import '../config/api_config.dart';
 
 class ApiService {
+  /// Extrait le message d'erreur du JSON retourné par le backend
+  /// Le backend retourne toujours: {"status":"error","message":"...","data":null,"errors":null}
+  static String? _extractErrorMessage(String responseBody) {
+    try {
+      final errorBody = json.decode(responseBody) as Map<String, dynamic>;
+      return errorBody['message'] as String?;
+    } catch (_) {
+      // Si le parsing JSON échoue, essayer d'extraire le message avec regex
+      try {
+        final messageMatch = RegExp(r'"message"\s*:\s*"([^"]*)"').firstMatch(responseBody);
+        return messageMatch?.group(1);
+      } catch (_) {
+        return null;
+      }
+    }
+  }
+
+  /// Lance une exception avec le message d'erreur du backend ou un message par défaut
+  static Never _throwBackendError(String responseBody, String defaultMessage) {
+    final errorMessage = _extractErrorMessage(responseBody);
+    if (errorMessage != null && errorMessage.isNotEmpty) {
+      throw Exception(errorMessage);
+    }
+    throw Exception(defaultMessage);
+  }
   // Méthode générique pour les requêtes GET
   static Future<Map<String, dynamic>> get(String endpoint) async {
     final url = '${ApiConfig.baseUrl}$endpoint';
@@ -20,11 +45,15 @@ class ApiService {
       if (response.statusCode == 200) {
         return json.decode(response.body) as Map<String, dynamic>;
       } else {
-        throw Exception('Failed to load data: ${response.statusCode} - ${response.body}');
+        _throwBackendError(response.body, 'Erreur lors du chargement des données');
       }
     } catch (e) {
       if (e.toString().contains('TimeoutException')) {
         throw Exception('Connection timeout: Le serveur ne répond pas. Vérifiez que le backend est démarré et accessible.');
+      }
+      // Si c'est déjà une Exception avec le message du backend, la relancer
+      if (e is Exception && !e.toString().contains('Network error')) {
+        rethrow;
       }
       throw Exception('Network error: $e');
     }
@@ -48,11 +77,15 @@ class ApiService {
       if (response.statusCode == 201 || response.statusCode == 200) {
         return json.decode(response.body) as Map<String, dynamic>;
       } else {
-        throw Exception('Failed to create data: ${response.statusCode} - ${response.body}');
+        _throwBackendError(response.body, 'Erreur lors de la création');
       }
     } catch (e) {
       if (e.toString().contains('TimeoutException')) {
         throw Exception('Connection timeout: Le serveur ne répond pas. Vérifiez que le backend est démarré et accessible.');
+      }
+      // Si c'est déjà une Exception avec le message du backend, la relancer
+      if (e is Exception && !e.toString().contains('Network error')) {
+        rethrow;
       }
       throw Exception('Network error: $e');
     }
@@ -77,11 +110,15 @@ class ApiService {
       if (response.statusCode == 200) {
         return json.decode(response.body) as Map<String, dynamic>;
       } else {
-        throw Exception('Failed to update data: ${response.statusCode} - ${response.body}');
+        _throwBackendError(response.body, 'Erreur lors de la mise à jour');
       }
     } catch (e) {
       if (e.toString().contains('TimeoutException')) {
         throw Exception('Connection timeout: Le serveur ne répond pas. Vérifiez que le backend est démarré et accessible.');
+      }
+      // Si c'est déjà une Exception avec le message du backend, la relancer
+      if (e is Exception && !e.toString().contains('Network error')) {
+        rethrow;
       }
       throw Exception('Network error: $e');
     }
@@ -109,11 +146,15 @@ class ApiService {
         }
         return json.decode(response.body) as Map<String, dynamic>;
       } else {
-        throw Exception('Failed to patch data: ${response.statusCode} - ${response.body}');
+        _throwBackendError(response.body, 'Erreur lors de la mise à jour');
       }
     } catch (e) {
       if (e.toString().contains('TimeoutException')) {
         throw Exception('Connection timeout: Le serveur ne répond pas. Vérifiez que le backend est démarré et accessible.');
+      }
+      // Si c'est déjà une Exception avec le message du backend, la relancer
+      if (e is Exception && !e.toString().contains('Network error')) {
+        rethrow;
       }
       throw Exception('Network error: $e');
     }
@@ -135,11 +176,15 @@ class ApiService {
       final responseBody = await response.stream.bytesToString();
 
       if (response.statusCode != 204 && response.statusCode != 200) {
-        throw Exception('Failed to delete data: ${response.statusCode} - $responseBody');
+        _throwBackendError(responseBody, 'Erreur lors de la suppression');
       }
     } catch (e) {
       if (e.toString().contains('TimeoutException')) {
         throw Exception('Connection timeout: Le serveur ne répond pas. Vérifiez que le backend est démarré et accessible.');
+      }
+      // Si c'est déjà une Exception avec le message du backend, la relancer directement
+      if (e is Exception) {
+        rethrow;
       }
       throw Exception('Network error: $e');
     }

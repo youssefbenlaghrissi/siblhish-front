@@ -52,5 +52,10 @@ class UserService {
     final data = response['data'] as Map<String, dynamic>;
     return User.fromJson(data);
   }
+
+  // Supprimer le compte utilisateur (soft delete)
+  static Future<void> deleteAccount(String userId) async {
+    await ApiService.delete('/users/$userId/account');
+  }
 }
 

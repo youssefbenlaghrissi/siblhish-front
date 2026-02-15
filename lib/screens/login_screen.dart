@@ -196,6 +196,43 @@ class _LoginScreenState extends State<LoginScreen> {
               
               const SizedBox(height: 24),
               
+              // Email/Password Login Button
+              _SocialButton(
+                onPressed: _isLoading ? null : () => Navigator.pushNamed(context, '/login-email'),
+                icon: '✉️',
+                iconColor: AppTheme.primaryColor,
+                label: 'Se connecter avec email',
+                backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
+                textColor: AppTheme.primaryColor,
+              ).animate().fadeIn(delay: 700.ms).slideY(begin: 0.2),
+              
+              const SizedBox(height: 16),
+              
+              // Register link
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'Pas de compte ? ',
+                    style: GoogleFonts.poppins(
+                      color: AppTheme.textSecondary,
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: _isLoading ? null : () => Navigator.pushNamed(context, '/register'),
+                    child: Text(
+                      'Créer un compte',
+                      style: GoogleFonts.poppins(
+                        color: AppTheme.primaryColor,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ).animate().fadeIn(delay: 800.ms),
+              
+              const SizedBox(height: 16),
+              
               // Continue as Guest
               TextButton(
                 onPressed: _isLoading ? null : _continueAsGuest,
@@ -207,7 +244,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     color: AppTheme.primaryColor,
                   ),
                 ),
-              ).animate().fadeIn(delay: 700.ms),
+              ).animate().fadeIn(delay: 900.ms),
               
               const Spacer(),
               
