@@ -369,7 +369,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.calendar_today_rounded, size: 48, color: Colors.grey[400]),
+                            const Icon(Icons.calendar_today_rounded, size: 48, color: Colors.grey),
                             const SizedBox(height: 12),
                             Text(
                               'Aucune donnée disponible',

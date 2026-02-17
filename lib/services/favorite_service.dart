@@ -4,7 +4,7 @@ import '../models/card.dart';
 
 class FavoriteService {
   /// Trouver tous les favoris d'un utilisateur par type
-  /// Types disponibles : "CARD" (statistiques), "CATEGORY_COLOR" (profil)
+  /// Types disponibles : "CARD" (statistiques)
   static Future<List<Map<String, dynamic>>> getFavoritesByType(
     String userId,
     String type,
@@ -190,53 +190,5 @@ class FavoriteService {
     return updatedFavorites;
   }
 
-  // ===== Méthodes utilitaires pour les couleurs de catégories =====
-
-  /// Obtenir toutes les couleurs personnalisées des catégories (type: "CATEGORY_COLOR")
-  static Future<List<Map<String, dynamic>>> getCategoryColors(String userId) async {
-    return getFavoritesByType(userId, 'CATEGORY_COLOR');
-  }
-
-  /// Obtenir la couleur personnalisée d'une catégorie spécifique
-  static Future<String?> getCategoryColor(String userId, String categoryId) async {
-    final favorites = await getCategoryColors(userId);
-    final favorite = favorites.firstWhere(
-      (f) => f['targetEntity'].toString() == categoryId,
-      orElse: () => {},
-    );
-    return favorite['value'] as String?;
-  }
-
-  /// Mettre à jour la couleur personnalisée d'une catégorie
-  static Future<Map<String, dynamic>> updateCategoryColor(
-    String userId,
-    String categoryId,
-    String colorHex,
-  ) async {
-    final favorites = await addFavorites(
-      userId,
-      [
-        {
-          'type': 'CATEGORY_COLOR',
-          'targetEntity': int.parse(categoryId),
-          'value': colorHex,
-        }
-      ],
-    );
-    return favorites.first;
-  }
-
-  /// Supprimer la couleur personnalisée d'une catégorie
-  static Future<void> deleteCategoryColor(String userId, String categoryId) async {
-    await deleteFavorites(
-      userId,
-      [
-        {
-          'type': 'CATEGORY_COLOR',
-          'targetEntity': int.parse(categoryId),
-        }
-      ],
-    );
-  }
 }
 

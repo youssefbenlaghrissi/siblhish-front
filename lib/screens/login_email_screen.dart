@@ -124,7 +124,7 @@ class _LoginEmailScreenState extends State<LoginEmailScreen> {
                     fontWeight: FontWeight.bold,
                     color: AppTheme.textPrimary,
                   ),
-                ).animate().fadeIn(delay: 100.ms),
+                ).animate().fadeIn(delay: 50.ms, duration: 300.ms),
                 
                 const SizedBox(height: 8),
                 
@@ -135,7 +135,7 @@ class _LoginEmailScreenState extends State<LoginEmailScreen> {
                     fontSize: 16,
                     color: AppTheme.textSecondary,
                   ),
-                ).animate().fadeIn(delay: 200.ms),
+                ).animate().fadeIn(delay: 100.ms, duration: 300.ms),
                 
                 const SizedBox(height: 32),
                 
@@ -224,7 +224,7 @@ class _LoginEmailScreenState extends State<LoginEmailScreen> {
                     }
                     return null;
                   },
-                ).animate().fadeIn(delay: 300.ms).slideY(begin: 0.1),
+                ).animate().fadeIn(delay: 150.ms, duration: 300.ms),
                 
                 const SizedBox(height: 16),
                 
@@ -261,7 +261,7 @@ class _LoginEmailScreenState extends State<LoginEmailScreen> {
                     }
                     return null;
                   },
-                ).animate().fadeIn(delay: 400.ms).slideY(begin: 0.1),
+                ).animate().fadeIn(delay: 200.ms, duration: 300.ms),
                 
                 const SizedBox(height: 24),
                 
@@ -295,7 +295,7 @@ class _LoginEmailScreenState extends State<LoginEmailScreen> {
                             ),
                           ),
                   ),
-                ).animate().fadeIn(delay: 500.ms).slideY(begin: 0.2),
+                ).animate().fadeIn(delay: 250.ms, duration: 300.ms),
                 
                 const SizedBox(height: 24),
                 
@@ -320,7 +320,7 @@ class _LoginEmailScreenState extends State<LoginEmailScreen> {
                       ),
                     ),
                   ],
-                ).animate().fadeIn(delay: 600.ms),
+                ),
                 
                 const SizedBox(height: 24),
               ],

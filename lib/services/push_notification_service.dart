@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -9,6 +10,11 @@ class PushNotificationService {
   static final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
   static String? _currentUserId;
   static Function(String)? _onNotificationsEnabledChanged;
+  
+  // Subscriptions Firebase pour pouvoir les annuler explicitement
+  static StreamSubscription<RemoteMessage>? _onMessageSubscription;
+  static StreamSubscription<RemoteMessage>? _onMessageOpenedAppSubscription;
+  static StreamSubscription<String>? _onTokenRefreshSubscription;
 
   /// Initialiser Firebase Messaging et les notifications locales
   /// [notificationsEnabledFromDB] : statut depuis la base de données (table users)
@@ -114,8 +120,11 @@ class PushNotificationService {
         debugPrint('⚠️ Token FCM non disponible');
       }
 
+      // Annuler l'ancienne subscription si elle existe
+      await _onTokenRefreshSubscription?.cancel();
+      
       // Écouter les changements de token (rafraîchissement automatique)
-      _firebaseMessaging.onTokenRefresh.listen((newToken) {
+      _onTokenRefreshSubscription = _firebaseMessaging.onTokenRefresh.listen((newToken) {
         debugPrint('🔄 Token FCM rafraîchi: ${newToken.substring(0, 20)}...');
         _sendTokenToBackend(newToken);
       });
@@ -144,8 +153,12 @@ class PushNotificationService {
 
   /// Configurer les handlers pour les notifications
   static void _setupMessageHandlers() {
+    // Annuler les anciennes subscriptions si elles existent
+    _onMessageSubscription?.cancel();
+    _onMessageOpenedAppSubscription?.cancel();
+    
     // Notification reçue quand l'app est au premier plan (ouverte)
-    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+    _onMessageSubscription = FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       debugPrint('📬 Notification reçue au premier plan: ${message.messageId}');
       // Si le message contient un payload "notification", Firebase ne l'affiche pas automatiquement au premier plan
       // On doit donc toujours afficher une notification locale au premier plan
@@ -153,7 +166,7 @@ class PushNotificationService {
     });
 
     // Notification qui a ouvert l'app (app était en arrière-plan ou fermée)
-    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+    _onMessageOpenedAppSubscription = FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
       debugPrint('📬 Notification qui a ouvert l\'app: ${message.messageId}');
       _handleNotificationTap(message);
     });
@@ -277,6 +290,25 @@ class PushNotificationService {
       debugPrint('❌ Erreur lors de la récupération du statut des permissions: $e');
       return AuthorizationStatus.notDetermined;
     }
+  }
+
+  /// Annuler toutes les subscriptions Firebase pour éviter les fuites mémoire
+  /// À appeler lors de la déconnexion ou du nettoyage des ressources
+  static Future<void> dispose() async {
+    debugPrint('🔄 Annulation des subscriptions Firebase...');
+    
+    await _onMessageSubscription?.cancel();
+    await _onMessageOpenedAppSubscription?.cancel();
+    await _onTokenRefreshSubscription?.cancel();
+    
+    _onMessageSubscription = null;
+    _onMessageOpenedAppSubscription = null;
+    _onTokenRefreshSubscription = null;
+    
+    _currentUserId = null;
+    _onNotificationsEnabledChanged = null;
+    
+    debugPrint('✅ Subscriptions Firebase annulées');
   }
 }
 

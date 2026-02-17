@@ -110,7 +110,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     );
                   },
                 ),
-              ).animate().fadeIn(duration: 500.ms).scale(begin: const Offset(0.8, 0.8)),
+              ).animate().fadeIn(duration: 300.ms),
               
               const SizedBox(height: 40),
               
@@ -122,7 +122,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   fontWeight: FontWeight.bold,
                   color: AppTheme.textPrimary,
                 ),
-              ).animate().fadeIn(delay: 200.ms),
+              ).animate().fadeIn(delay: 100.ms, duration: 300.ms),
               
               const SizedBox(height: 8),
               
@@ -134,7 +134,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   color: AppTheme.textSecondary,
                 ),
                 textAlign: TextAlign.center,
-              ).animate().fadeIn(delay: 300.ms),
+              ).animate().fadeIn(delay: 150.ms, duration: 300.ms),
               
               const Spacer(),
               
@@ -172,7 +172,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 label: 'Continuer avec Google',
                 backgroundColor: Colors.white,
                 textColor: AppTheme.textPrimary,
-              ).animate().fadeIn(delay: 400.ms).slideY(begin: 0.2),
+              ).animate().fadeIn(delay: 200.ms, duration: 300.ms),
               
               const SizedBox(height: 24),
               
@@ -192,7 +192,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   Expanded(child: Divider(color: Colors.grey[300])),
                 ],
-              ).animate().fadeIn(delay: 600.ms),
+              ),
               
               const SizedBox(height: 24),
               
@@ -204,7 +204,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 label: 'Se connecter avec email',
                 backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
                 textColor: AppTheme.primaryColor,
-              ).animate().fadeIn(delay: 700.ms).slideY(begin: 0.2),
+              ).animate().fadeIn(delay: 250.ms, duration: 300.ms),
               
               const SizedBox(height: 16),
               
@@ -229,7 +229,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                 ],
-              ).animate().fadeIn(delay: 800.ms),
+              ),
               
               const SizedBox(height: 16),
               
@@ -244,7 +244,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     color: AppTheme.primaryColor,
                   ),
                 ),
-              ).animate().fadeIn(delay: 900.ms),
+              ),
               
               const Spacer(),
               
@@ -266,7 +266,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   textAlign: TextAlign.center,
                 ),
-              ).animate().fadeIn(delay: 800.ms),
+              ),
             ],
           ),
         ),

@@ -314,7 +314,7 @@ class _CalendarDayCell extends StatelessWidget {
 
   String _formatAmount(double amount) {
     if (amount >= 1000) {
-      return '${(amount / 1000).toStringAsFixed(1)}k';
+      return '${(amount / 1000).toStringAsFixed(2)}k';
     }
     return amount.toStringAsFixed(0);
   }

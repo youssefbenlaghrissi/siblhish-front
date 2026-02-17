@@ -475,10 +475,10 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(
-                          Icons.receipt_long_rounded,
-                          size: 64,
-                          color: Colors.grey[400],
+                        Image.asset(
+                          'assets/icons/transaction.png',
+                          width: 128,
+                          height: 128,
                         ),
                         const SizedBox(height: 16),
                         Text(

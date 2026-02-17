@@ -65,10 +65,6 @@ class BudgetProvider extends ChangeNotifier {
   List<Card> _availableCards = []; // Cartes disponibles depuis l'API
   bool _availableCardsLoaded = false;
   
-  // Cache pour les couleurs personnalisées des catégories
-  Map<String, String>? _cachedCategoryColors;
-  DateTime? _categoryColorsCacheTime;
-  static const _categoryColorsCacheDuration = Duration(minutes: 5);
 
   // États de chargement
   bool _isLoading = false;
@@ -151,7 +147,7 @@ class BudgetProvider extends ChangeNotifier {
 
     // Si un autre utilisateur, nettoyer d'abord
     if (_currentUser != null && _currentUser!.id != userId) {
-      clearAllData();
+      await clearAllData();
     }
 
     _isLoading = true;
@@ -240,7 +236,7 @@ class BudgetProvider extends ChangeNotifier {
   }
 
   // Nettoyer toutes les données (déconnexion, fermeture app, nouvelle auth)
-  void clearAllData() {
+  Future<void> clearAllData() async {
     _currentUser = null;
     _expenses.clear();
     _incomes.clear();
@@ -265,46 +261,15 @@ class BudgetProvider extends ChangeNotifier {
     _cardFavoritesLoaded = false;
     _statisticsCardsPreferences.clear();
     _statisticsCardsPreferencesLoaded = false;
-    // Nettoyer le cache des couleurs personnalisées
-    _cachedCategoryColors = null;
-    _categoryColorsCacheTime = null;
     _availableCards.clear();
     _availableCardsLoaded = false;
+    
+    // Annuler les subscriptions Firebase pour éviter les fuites mémoire
+    await PushNotificationService.dispose();
+    
     notifyListeners();
   }
 
-  // Obtenir les couleurs personnalisées avec cache
-  Future<Map<String, String>> _getCategoryColorsCached(String userId) async {
-    // Si le cache est valide, le retourner
-    if (_cachedCategoryColors != null && 
-        _categoryColorsCacheTime != null &&
-        DateTime.now().difference(_categoryColorsCacheTime!) < _categoryColorsCacheDuration) {
-      return _cachedCategoryColors!;
-    }
-    
-    // Sinon, charger depuis l'API
-    final categoryColors = await FavoriteService.getCategoryColors(userId);
-    final colorMap = <String, String>{};
-    for (var favorite in categoryColors) {
-      final categoryId = favorite['targetEntity']?.toString();
-      final color = favorite['value'] as String?;
-      if (categoryId != null && color != null) {
-        colorMap[categoryId] = color;
-      }
-    }
-    
-    // Mettre en cache
-    _cachedCategoryColors = colorMap;
-    _categoryColorsCacheTime = DateTime.now();
-    
-    return colorMap;
-  }
-
-  // Invalider le cache des couleurs (appelé après modification)
-  void invalidateCategoryColorsCache() {
-    _cachedCategoryColors = null;
-    _categoryColorsCacheTime = null;
-  }
 
   // Charger les catégories à la demande
   Future<void> loadCategoriesIfNeeded() async {
@@ -321,41 +286,14 @@ class BudgetProvider extends ChangeNotifier {
     _isLoadingCategories = true;
     try {
       _categories.clear();
-      
-      // OPTIMISATION : Charger les catégories et les couleurs en parallèle
-      if (_currentUser != null) {
-        final results = await Future.wait([
-          CategoryService.getAllCategories(),
-          _getCategoryColorsCached(_currentUser!.id),
-        ]);
-        final categories = results[0] as List<models.Category>;
-        final colorMap = results[1] as Map<String, String>;
-        
-        // Fusionner les couleurs personnalisées avec les catégories
-        final categoriesWithColors = categories.map((category) {
-          final customColor = colorMap[category.id];
-          if (customColor != null) {
-            return models.Category(
-              id: category.id,
-              name: category.name,
-              icon: category.icon,
-              color: customColor, // Utiliser la couleur personnalisée
-            );
-          }
-          return category;
-        }).toList();
-        
-        _categories.addAll(categoriesWithColors);
-      } else {
-        final categories = await CategoryService.getAllCategories();
-        _categories.addAll(categories);
-      }
+      final categories = await CategoryService.getAllCategories();
+      _categories.addAll(categories);
       
       _categoriesLoaded = true; // Marquer comme chargé
       notifyListeners();
     } catch (e) {
       rethrow;
-} finally {
+    } finally {
       _isLoadingCategories = false;
     }
   }
@@ -369,38 +307,10 @@ class BudgetProvider extends ChangeNotifier {
     
     _isLoadingCategories = true;
     _categoriesLoaded = false; // Réinitialiser le flag pour forcer le rechargement
-    invalidateCategoryColorsCache(); // Invalider le cache pour forcer le rechargement
     try {
       _categories.clear();
-      
-      // OPTIMISATION : Charger les catégories et les couleurs en parallèle
-      if (_currentUser != null) {
-        final results = await Future.wait([
-          CategoryService.getAllCategories(),
-          _getCategoryColorsCached(_currentUser!.id),
-        ]);
-        final categories = results[0] as List<models.Category>;
-        final colorMap = results[1] as Map<String, String>;
-        
-        // Fusionner les couleurs personnalisées avec les catégories
-        final categoriesWithColors = categories.map((category) {
-          final customColor = colorMap[category.id];
-          if (customColor != null) {
-            return models.Category(
-              id: category.id,
-              name: category.name,
-              icon: category.icon,
-              color: customColor, // Utiliser la couleur personnalisée
-            );
-          }
-          return category;
-        }).toList();
-        
-        _categories.addAll(categoriesWithColors);
-      } else {
-        final categories = await CategoryService.getAllCategories();
-        _categories.addAll(categories);
-      }
+      final categories = await CategoryService.getAllCategories();
+      _categories.addAll(categories);
       
       _categoriesLoaded = true; // Marquer comme chargé
       notifyListeners();
@@ -805,16 +715,8 @@ class BudgetProvider extends ChangeNotifier {
       // Mettre à jour toutes les données depuis le DTO unifié
       _monthlySummary = allStats.monthlySummary;
       
-      // Mettre à jour categoryExpenses avec les couleurs personnalisées
+      // Mettre à jour categoryExpenses
       _categoryExpenses = allStats.categoryExpenses.categories;
-      final colorMap = await _getCategoryColorsCached(_currentUser!.id);
-      _categoryExpenses = _categoryExpenses.map((expense) {
-        final customColor = colorMap[expense.categoryId];
-        if (customColor != null) {
-          return expense.copyWith(categoryColor: customColor);
-        }
-        return expense;
-      }).toList();
       
       // Mettre à jour les données budgets
       _budgetVsActual = allStats.budgetStatistics.budgetVsActual;

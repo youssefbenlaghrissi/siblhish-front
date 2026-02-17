@@ -371,7 +371,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                             child: Row(
                               children: [
-                                Icon(Icons.calendar_today, size: 18, color: Colors.grey[600]),
+                                const Icon(Icons.calendar_today, size: 18, color: Colors.grey),
                                 const SizedBox(width: 8),
                                 Text(
                                   tempStartDate != null
@@ -389,7 +389,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 8),
-                        child: Icon(Icons.arrow_forward, size: 18, color: Colors.grey[400]),
+                        child: const Icon(Icons.arrow_forward, size: 18, color: Colors.grey),
                       ),
                       Expanded(
                         child: InkWell(
@@ -412,7 +412,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                             child: Row(
                               children: [
-                                Icon(Icons.calendar_today, size: 18, color: Colors.grey[600]),
+                                const Icon(Icons.calendar_today, size: 18, color: Colors.grey),
                                 const SizedBox(width: 8),
                                 Text(
                                   tempEndDate != null
@@ -636,7 +636,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
+                      const Icon(Icons.error_outline, size: 64, color: Colors.red),
                       const SizedBox(height: 16),
                       Text(
                         'Impossible de charger vos données',
@@ -899,7 +899,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ),
                                 child: Row(
                                   children: [
-                                    Icon(Icons.receipt_long_rounded, color: Colors.grey[400], size: 32),
+                                    const Icon(Icons.receipt_long_rounded, color: Colors.grey, size: 32),
                                     const SizedBox(width: 12),
                                     Expanded(
                                       child: Text(
@@ -1048,7 +1048,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                 // Bottom spacing
                 const SliverToBoxAdapter(
-                  child: SizedBox(height: 20),
+                  child: const SizedBox(height: 20),
                 ),
               ],
             );
@@ -1414,7 +1414,7 @@ class _ScheduledPaymentsSection extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.schedule_rounded, color: Colors.grey[400], size: 32),
+                  const Icon(Icons.calendar_today_rounded, color: Colors.grey, size: 32),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(

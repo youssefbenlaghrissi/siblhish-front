@@ -7,10 +7,8 @@ import '../models/user.dart';
 import '../models/category.dart';
 import '../models/budget.dart';
 import '../theme/app_theme.dart';
-import '../widgets/add_category_modal.dart';
 import '../widgets/add_budget_modal.dart';
 import '../widgets/edit_budget_modal.dart';
-import '../widgets/edit_category_color_modal.dart';
 import '../utils/color_utils.dart';
 import '../services/auth_service.dart';
 import '../services/user_service.dart';
@@ -32,12 +30,11 @@ class ProfileScreen extends StatelessWidget {
         child: Consumer<BudgetProvider>(
           builder: (context, provider, child) {
             final user = provider.currentUser;
-            final categories = provider.categories;
             
-            // Charger les catégories et budgets quand l'écran devient visible
+            // Charger les budgets quand l'écran devient visible
             if (isVisible && user != null) {
               WidgetsBinding.instance.addPostFrameCallback((_) {
-                provider.loadCategoriesIfNeeded();
+                // Les catégories sont chargées automatiquement si nécessaire
               });
             }
 
@@ -60,60 +57,6 @@ class ProfileScreen extends StatelessWidget {
                   child: _BudgetsSection(
                     provider: provider,
                     isVisible: isVisible,
-                  ),
-                ),
-
-                // Categories Header
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 30, 20, 10),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Mes catégories',
-                          style: GoogleFonts.poppins(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        TextButton.icon(
-                          onPressed: () {
-                            showModalBottomSheet(
-                              context: context,
-                              isScrollControlled: true,
-                              backgroundColor: Colors.transparent,
-                              builder: (context) => const AddCategoryModal(),
-                            );
-                          },
-                          icon: const Icon(Icons.add_rounded),
-                          label: const Text('Ajouter'),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                // Categories Grid
-                SliverPadding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  sliver: SliverGrid(
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 12,
-                      childAspectRatio: 2.5,
-                    ),
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                        final category = categories[index];
-                        return _CategoryCard(
-                          category: category,
-                          provider: provider,
-                        );
-                      },
-                      childCount: categories.length,
-                    ),
                   ),
                 ),
 
@@ -903,129 +846,6 @@ class _DeleteBudgetConfirmationDialogState extends State<_DeleteBudgetConfirmati
   }
 }
 
-class _CategoryCard extends StatelessWidget {
-  final Category category;
-  final BudgetProvider provider;
-
-  const _CategoryCard({
-    required this.category,
-    required this.provider,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final categoryColor = category.color ?? '#999999';
-    final categoryIcon = category.icon ?? '📦';
-    
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: ColorUtils.parseColor(categoryColor).withOpacity(0.1),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: ColorUtils.parseColor(categoryColor).withOpacity(0.3),
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: ColorUtils.parseColor(categoryColor).withOpacity(0.2),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              categoryIcon,
-              style: const TextStyle(fontSize: 20),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              category.name,
-              style: GoogleFonts.poppins(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: ColorUtils.parseColor(categoryColor),
-              ),
-            ),
-          ),
-          PopupMenuButton(
-            icon: Icon(
-              Icons.more_vert_rounded,
-              color: ColorUtils.parseColor(categoryColor),
-              size: 20,
-            ),
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: 'color',
-                child: Row(
-                  children: [
-                    Icon(Icons.palette_rounded, size: 18),
-                    SizedBox(width: 8),
-                    Text('Personnaliser la couleur'),
-                  ],
-                ),
-              ),
-              const PopupMenuItem(
-                value: 'edit',
-                child: Row(
-                  children: [
-                    Icon(Icons.edit_rounded, size: 18),
-                    SizedBox(width: 8),
-                    Text('Modifier'),
-                  ],
-                ),
-              ),
-              const PopupMenuItem(
-                value: 'delete',
-                child: Row(
-                  children: [
-                    Icon(Icons.delete_rounded, size: 18, color: Colors.red),
-                    SizedBox(width: 8),
-                    Text('Supprimer', style: TextStyle(color: Colors.red)),
-                  ],
-                ),
-              ),
-            ],
-            onSelected: (value) async {
-              if (value == 'color') {
-                showModalBottomSheet(
-                  context: context,
-                  isScrollControlled: true,
-                  backgroundColor: Colors.transparent,
-                  builder: (context) => EditCategoryColorModal(category: category),
-                );
-              } else if (value == 'delete') {
-                try {
-                  await provider.deleteCategory(category.id);
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Catégorie supprimée avec succès'),
-                        backgroundColor: AppTheme.primaryColor,
-                      ),
-                    );
-                  }
-                } catch (e) {
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Erreur: ${e.toString()}'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
-                }
-              }
-            },
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _SettingsCard extends StatelessWidget {
   final BudgetProvider provider;
 
@@ -1109,7 +929,7 @@ class _SettingsCard extends StatelessWidget {
                   await UserService.deleteAccount(userId);
                   
                   // Nettoyer les données du provider
-                  provider.clearAllData();
+                  await provider.clearAllData();
                   
                   // Déconnexion Google et suppression de la session
                   await AuthService.logout();
@@ -1198,7 +1018,7 @@ class _SettingsCard extends StatelessWidget {
                   final provider = Provider.of<BudgetProvider>(context, listen: false);
                   
                   // Nettoyer les données du provider
-                  provider.clearAllData();
+                  await provider.clearAllData();
                   
                   // Déconnexion Google et suppression de la session
                   await AuthService.logout();

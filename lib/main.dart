@@ -240,7 +240,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver, Si
               label: 'Statistiques',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.savings_rounded),
+              icon: Icon(Icons.flag_rounded),
               label: 'Objectifs',
             ),
             BottomNavigationBarItem(

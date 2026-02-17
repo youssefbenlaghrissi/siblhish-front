@@ -285,10 +285,10 @@ class _GoalsScreenState extends State<GoalsScreen> {
                           child: Center(
                             child: Column(
                               children: [
-                                Icon(
-                                  Icons.flag_rounded,
-                                  size: 64,
-                                  color: Colors.grey[300],
+                                Image.asset(
+                                  'assets/icons/goal.png',
+                                  width: 128,
+                                  height: 128,
                                 ),
                                 const SizedBox(height: 16),
                                 Text(
