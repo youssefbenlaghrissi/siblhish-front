@@ -7,6 +7,7 @@ import '../models/notification.dart' as models;
 import '../services/notification_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/skeleton_loader.dart';
+import '../widgets/custom_snackbar.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -62,10 +63,68 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   Future<void> _markAsRead(models.Notification notification) async {
     if (notification.isRead) return;
     
+    // Mise à jour optimiste : mettre à jour l'UI immédiatement
+    setState(() {
+      final index = _notifications.indexWhere((n) => n.id == notification.id);
+      if (index != -1) {
+        // Créer une nouvelle notification avec isRead = true
+        final updatedNotification = models.Notification(
+          id: notification.id,
+          title: notification.title,
+          description: notification.description,
+          isRead: true,
+          type: notification.type,
+          transactionType: notification.transactionType,
+          creationDate: notification.creationDate,
+        );
+        _notifications[index] = updatedNotification;
+        // Décrémenter le compteur si nécessaire
+        if (_unreadCount > 0) {
+          _unreadCount--;
+        }
+      }
+    });
+    
+    // Faire l'appel API en arrière-plan (non-bloquant)
+    NotificationService.markAsRead(notification.id).then((_) {
+      // Mettre à jour uniquement le compteur de notifications non lues (sans recharger toute la liste)
+      _updateUnreadCount();
+    }).catchError((e) {
+      // En cas d'erreur, restaurer l'état précédent
+      setState(() {
+        final index = _notifications.indexWhere((n) => n.id == notification.id);
+        if (index != -1) {
+          _notifications[index] = notification;
+          _unreadCount++;
+        }
+      });
+      
+      // Afficher un message d'erreur
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          CustomSnackBar.error(
+            message: 'Erreur lors du marquage de la notification comme lue',
+          ),
+        );
+      }
+    });
+  }
+
+  // Mettre à jour uniquement le compteur de notifications non lues
+  Future<void> _updateUnreadCount() async {
     try {
-      await NotificationService.markAsRead(notification.id);
-      await _loadNotifications();
+      final provider = context.read<BudgetProvider>();
+      final userId = provider.currentUser?.id;
+      if (userId == null) return;
+
+      final count = await NotificationService.getUnreadCount(userId);
+      if (mounted) {
+        setState(() {
+          _unreadCount = count;
+        });
+      }
     } catch (e) {
+      // Ignorer les erreurs silencieusement pour le compteur
     }
   }
 
@@ -82,11 +141,61 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   Future<void> _deleteNotification(models.Notification notification) async {
-    try {
-      await NotificationService.deleteNotification(notification.id);
-      await _loadNotifications();
-    } catch (e) {
-    }
+    // Sauvegarder l'index de la notification pour pouvoir la restaurer en cas d'erreur
+    final index = _notifications.indexWhere((n) => n.id == notification.id);
+    if (index == -1) return;
+    
+    // Sauvegarder le compteur actuel
+    final previousUnreadCount = _unreadCount;
+    
+    // Mise à jour optimiste : supprimer la notification de la liste immédiatement
+    setState(() {
+      _notifications.removeAt(index);
+      // Décrémenter le compteur si la notification n'était pas lue
+      if (!notification.isRead && _unreadCount > 0) {
+        _unreadCount--;
+      }
+    });
+    
+    // Faire l'appel API en arrière-plan (non-bloquant)
+    NotificationService.deleteNotification(notification.id).then((_) {
+      // Mettre à jour uniquement le compteur de notifications non lues (sans recharger toute la liste)
+      _updateUnreadCount();
+      
+      // Afficher un message de succès
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          CustomSnackBar.success(
+            title: 'Notification supprimée',
+            description: 'La notification a été supprimée avec succès',
+          ),
+        );
+      }
+    }).catchError((e) {
+      // En cas d'erreur, restaurer la notification à sa position précédente
+      setState(() {
+        _notifications.insert(index, notification);
+        _unreadCount = previousUnreadCount;
+      });
+      
+      // Afficher un message d'erreur avec le message du backend si disponible
+      String errorMessage = 'Erreur lors de la suppression de la notification';
+      if (e.toString().contains('Exception:')) {
+        // Extraire le message du backend
+        final messageMatch = RegExp(r'Exception:\s*(.+)').firstMatch(e.toString());
+        if (messageMatch != null) {
+          errorMessage = messageMatch.group(1) ?? errorMessage;
+        }
+      }
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          CustomSnackBar.error(
+            message: errorMessage,
+          ),
+        );
+      }
+    });
   }
 
   @override
@@ -239,85 +348,195 @@ class _NotificationCard extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
-        child: Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: notification.isRead ? Colors.white : backgroundColor,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: notification.isRead 
-                  ? Colors.grey[200]! 
-                  : notificationColor.withOpacity(0.3),
-              width: notification.isRead ? 1 : 1.5,
-            ),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: backgroundColor,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(
-                  iconData,
-                  color: notificationColor,
-                  size: 20,
+        child: Stack(
+          children: [
+            Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: notification.isRead ? Colors.white : backgroundColor,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: notification.isRead 
+                      ? Colors.grey[200]! 
+                      : notificationColor.withOpacity(0.3),
+                  width: notification.isRead ? 1 : 1.5,
                 ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: backgroundColor,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      iconData,
+                      color: notificationColor,
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: Text(
-                            notification.title,
-                            style: GoogleFonts.poppins(
-                              fontSize: 15,
-                              fontWeight: notification.isRead 
-                                  ? FontWeight.w500 
-                                  : FontWeight.w600,
-                              color: AppTheme.textPrimary,
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                notification.title,
+                                style: GoogleFonts.poppins(
+                                  fontSize: 15,
+                                  fontWeight: notification.isRead 
+                                      ? FontWeight.w500 
+                                      : FontWeight.w600,
+                                  color: AppTheme.textPrimary,
+                                ),
+                              ),
                             ),
+                            if (!notification.isRead)
+                              Container(
+                                width: 8,
+                                height: 8,
+                                decoration: const BoxDecoration(
+                                  color: AppTheme.primaryColor,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          notification.description,
+                          style: GoogleFonts.poppins(
+                            fontSize: 13,
+                            color: Colors.grey[600],
                           ),
                         ),
-                        if (!notification.isRead)
-                          Container(
-                            width: 8,
-                            height: 8,
-                            decoration: const BoxDecoration(
-                              color: AppTheme.primaryColor,
-                              shape: BoxShape.circle,
-                            ),
+                        const SizedBox(height: 8),
+                        Text(
+                          dateFormatter.format(notification.creationDate),
+                          style: GoogleFonts.poppins(
+                            fontSize: 11,
+                            color: Colors.grey[400],
                           ),
+                        ),
                       ],
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      notification.description,
-                      style: GoogleFonts.poppins(
-                        fontSize: 13,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      dateFormatter.format(notification.creationDate),
-                      style: GoogleFonts.poppins(
-                        fontSize: 11,
-                        color: Colors.grey[400],
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+            // Menu à trois points positionné en haut à droite
+            Positioned(
+              top: 8,
+              right: 8,
+              child: PopupMenuButton<String>(
+                icon: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.more_vert_rounded,
+                    color: AppTheme.textSecondary,
+                    size: 18,
+                  ),
+                ),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(
+                  minWidth: 32,
+                  minHeight: 32,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 4,
+                color: Colors.white,
+                onSelected: (value) {
+                  if (value == 'delete') {
+                    onDelete();
+                  } else if (value == 'mark_read') {
+                    onTap();
+                  }
+                },
+                itemBuilder: (context) => [
+                  PopupMenuItem<String>(
+                    value: 'mark_read',
+                    enabled: !notification.isRead,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    child: Opacity(
+                      opacity: notification.isRead ? 0.5 : 1.0,
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: notification.isRead
+                                  ? Colors.grey[200]
+                                  : AppTheme.primaryColor.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Icon(
+                              Icons.check_circle_outline,
+                              size: 16,
+                              color: notification.isRead
+                                  ? Colors.grey[400]!
+                                  : AppTheme.primaryColor,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            'Marquer comme lu',
+                            style: GoogleFonts.poppins(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: notification.isRead 
+                                  ? Colors.grey[400]!
+                                  : AppTheme.textPrimary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  PopupMenuItem<String>(
+                    value: 'delete',
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: Colors.red.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: const Icon(
+                            Icons.delete_outline_rounded,
+                            size: 16,
+                            color: Colors.red,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          'Supprimer',
+                          style: GoogleFonts.poppins(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.red,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );

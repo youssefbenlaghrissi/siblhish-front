@@ -764,28 +764,36 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                             if (_unreadNotificationsCount > 0)
                               Positioned(
-                                right: 8,
-                                top: 8,
-                                child: Container(
-                                  padding: const EdgeInsets.all(4),
-                                  decoration: const BoxDecoration(
-                                    color: Colors.red,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  constraints: const BoxConstraints(
-                                    minWidth: 16,
-                                    minHeight: 16,
-                                  ),
-                                  child: Text(
-                                    _unreadNotificationsCount > 99 
-                                        ? '99+' 
-                                        : _unreadNotificationsCount.toString(),
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white,
+                                right: 6,
+                                top: 6,
+                                child: IgnorePointer(
+                                  child: Container(
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: _unreadNotificationsCount > 99 ? 4 : 3,
+                                      vertical: 2,
                                     ),
-                                    textAlign: TextAlign.center,
+                                    decoration: const BoxDecoration(
+                                      color: Colors.red,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    constraints: BoxConstraints(
+                                      minWidth: _unreadNotificationsCount > 99 ? 20 : 18,
+                                      minHeight: 18,
+                                    ),
+                                    child: Center(
+                                      child: Text(
+                                        _unreadNotificationsCount > 99 
+                                            ? '99+' 
+                                            : _unreadNotificationsCount.toString(),
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                          height: 1.0,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ),
