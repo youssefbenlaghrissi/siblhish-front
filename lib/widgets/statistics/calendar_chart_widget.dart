@@ -313,8 +313,12 @@ class _CalendarDayCell extends StatelessWidget {
   });
 
   String _formatAmount(double amount) {
-    if (amount >= 1000) {
-      return '${(amount / 1000).toStringAsFixed(2)}k';
+    final absAmount = amount.abs();
+    if (absAmount >= 1000) {
+      final inK = amount / 1000;
+      // 3 décimales pour garder la valeur exacte (ex. 1765 → 1.765 k)
+      final s = inK.toStringAsFixed(3).replaceFirst(RegExp(r'0+$'), '').replaceFirst(RegExp(r'\.$'), '');
+      return '$s k';
     }
     return amount.toStringAsFixed(0);
   }

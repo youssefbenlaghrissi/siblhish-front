@@ -35,6 +35,8 @@ class ExpenseService {
   // Mettre à jour une dépense
   static Future<Expense> updateExpense(
       String expenseId, Map<String, dynamic> expenseData) async {
+    debugPrint('[ExpenseService] updateExpense - expenseId: $expenseId');
+    debugPrint('[ExpenseService] updateExpense - body: $expenseData');
     final response = await ApiService.put('/expenses/$expenseId', expenseData);
     final data = response['data'] as Map<String, dynamic>;
     return Expense.fromJson(data);

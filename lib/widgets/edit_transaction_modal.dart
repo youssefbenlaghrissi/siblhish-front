@@ -42,6 +42,7 @@ class _EditTransactionModalState extends State<EditTransactionModal> {
 
   bool _isSubmitting = false;
   bool _hasAttemptedSubmit = false;
+  bool _showWeeklyDaysError = false;
 
   @override
   void initState() {
@@ -190,8 +191,17 @@ class _EditTransactionModalState extends State<EditTransactionModal> {
     
     if (!_formKey.currentState!.validate() || _isSubmitting) return;
 
+    if (_isRecurring && _recurrenceFrequency == 'WEEKLY' &&
+        (_recurrenceDaysOfWeek == null || _recurrenceDaysOfWeek!.isEmpty)) {
+      setState(() {
+        _showWeeklyDaysError = true;
+      });
+      return;
+    }
+
     setState(() {
       _isSubmitting = true;
+      _showWeeklyDaysError = false;
     });
 
     try {
@@ -539,10 +549,11 @@ class _EditTransactionModalState extends State<EditTransactionModal> {
                         onChanged: (value) {
                           setState(() {
                             _recurrenceFrequency = value;
-                            _recurrenceEndDate = null;
-                            _recurrenceDaysOfWeek = null;
-                            _recurrenceDayOfMonth = null;
-                            _recurrenceDayOfYear = null;
+                            // Ne pas réinitialiser _recurrenceEndDate : l'utilisateur peut avoir
+                            // choisi "jusqu'à une date" puis changé seulement la fréquence.
+                            if (value != 'WEEKLY') _recurrenceDaysOfWeek = null;
+                            if (value != 'MONTHLY') _recurrenceDayOfMonth = null;
+                            if (value != 'YEARLY') _recurrenceDayOfYear = null;
                           });
                         },
                         validator: (value) {
@@ -560,6 +571,7 @@ class _EditTransactionModalState extends State<EditTransactionModal> {
                           initialDaysOfWeek: _recurrenceDaysOfWeek,
                           initialDayOfMonth: _recurrenceDayOfMonth,
                           initialDayOfYear: _recurrenceDayOfYear,
+                          weeklyDaysErrorText: _showWeeklyDaysError ? 'Veuillez sélectionner au moins un jour' : null,
                           onEndDateChanged: (date) {
                             setState(() {
                               _recurrenceEndDate = date;
@@ -568,6 +580,8 @@ class _EditTransactionModalState extends State<EditTransactionModal> {
                           onDaysOfWeekChanged: (days) {
                             setState(() {
                               _recurrenceDaysOfWeek = days;
+                              _showWeeklyDaysError = false;
+                              if (_hasAttemptedSubmit) _formKey.currentState?.validate();
                             });
                           },
                           onDayOfMonthChanged: (day) {

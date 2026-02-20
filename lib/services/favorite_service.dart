@@ -134,7 +134,7 @@ class FavoriteService {
   }
   
   /// Mettre à jour les préférences et retourner les favoris complets mis à jour
-  /// Retourne les favoris complets avec leur ordre pour éviter un appel GET supplémentaire
+  /// Après POST/DELETE, appelle GET /favorites/{userId}/type/CARD pour récupérer la liste à jour
   /// [availableCards] : Requis, liste dynamique des cartes disponibles depuis l'API
   static Future<List<Map<String, dynamic>>> updateStatisticsCardsPreferencesWithFavorites(
     String userId,
@@ -185,8 +185,10 @@ class FavoriteService {
     }
 
     // Ajouter/mettre à jour les favoris avec leur ordre
-    // La réponse POST contient déjà les favoris mis à jour
-    final updatedFavorites = await addFavorites(userId, newFavorites);
+    await addFavorites(userId, newFavorites);
+
+    // Récupérer la liste à jour via GET /favorites/{userId}/type/CARD (ne pas s'appuyer sur la réponse du POST)
+    final updatedFavorites = await getFavoritesByType(userId, 'CARD');
     return updatedFavorites;
   }
 

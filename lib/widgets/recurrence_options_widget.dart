@@ -12,6 +12,8 @@ class RecurrenceOptionsWidget extends StatefulWidget {
   final List<int>? initialDaysOfWeek;
   final int? initialDayOfMonth;
   final int? initialDayOfYear;
+  /// Message d'erreur affiché au-dessus de la liste des jours (ex: "Veuillez sélectionner au moins un jour")
+  final String? weeklyDaysErrorText;
 
   const RecurrenceOptionsWidget({
     super.key,
@@ -24,6 +26,7 @@ class RecurrenceOptionsWidget extends StatefulWidget {
     this.initialDaysOfWeek,
     this.initialDayOfMonth,
     this.initialDayOfYear,
+    this.weeklyDaysErrorText,
   });
 
   @override
@@ -37,7 +40,13 @@ class _RecurrenceOptionsWidgetState extends State<RecurrenceOptionsWidget> {
   late int _dayOfMonth;
   late int _dayOfYear;
 
-  final List<String> _weekDays = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+  final List<String> _weekDays = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
+
+  static int _defaultDayOfYear() {
+    final now = DateTime.now();
+    final startOfYear = DateTime(now.year, 1, 1);
+    return now.difference(startOfYear).inDays + 1;
+  }
 
   @override
   void initState() {
@@ -49,9 +58,59 @@ class _RecurrenceOptionsWidgetState extends State<RecurrenceOptionsWidget> {
     if (widget.initialDayOfYear != null) {
       _dayOfYear = widget.initialDayOfYear!;
     } else {
-      final now = DateTime.now();
-      final startOfYear = DateTime(now.year, 1, 1);
-      _dayOfYear = now.difference(startOfYear).inDays + 1;
+      _dayOfYear = _defaultDayOfYear();
+    }
+    // Synchroniser les valeurs affichées avec le parent pour qu'elles soient envoyées à l'API
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      switch (widget.frequency) {
+        case 'WEEKLY':
+          widget.onDaysOfWeekChanged(
+            _selectedDaysOfWeek.isEmpty ? null : _selectedDaysOfWeek,
+          );
+          break;
+        case 'MONTHLY':
+          widget.onDayOfMonthChanged(_dayOfMonth);
+          break;
+        case 'YEARLY':
+          widget.onDayOfYearChanged(_dayOfYear);
+          break;
+      }
+    });
+  }
+
+  @override
+  void didUpdateWidget(RecurrenceOptionsWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.frequency != widget.frequency) {
+      switch (widget.frequency) {
+        case 'WEEKLY':
+          _selectedDaysOfWeek = widget.initialDaysOfWeek ?? [];
+          break;
+        case 'MONTHLY':
+          _dayOfMonth = widget.initialDayOfMonth ?? DateTime.now().day;
+          break;
+        case 'YEARLY':
+          _dayOfYear = widget.initialDayOfYear ?? _defaultDayOfYear();
+          break;
+      }
+      // Différer les callbacks au prochain frame pour éviter setState pendant la mise à jour (assertion referenceBox.attached)
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        switch (widget.frequency) {
+          case 'WEEKLY':
+            widget.onDaysOfWeekChanged(
+              _selectedDaysOfWeek.isEmpty ? null : _selectedDaysOfWeek,
+            );
+            break;
+          case 'MONTHLY':
+            widget.onDayOfMonthChanged(_dayOfMonth);
+            break;
+          case 'YEARLY':
+            widget.onDayOfYearChanged(_dayOfYear);
+            break;
+        }
+      });
     }
   }
 
@@ -214,6 +273,17 @@ class _RecurrenceOptionsWidgetState extends State<RecurrenceOptionsWidget> {
         // Options spécifiques selon la fréquence
         if (widget.frequency == 'WEEKLY') ...[
           const SizedBox(height: 20),
+          if (widget.weeklyDaysErrorText != null) ...[
+            Text(
+              widget.weeklyDaysErrorText!,
+              style: GoogleFonts.poppins(
+                fontSize: 12,
+                color: Colors.red,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
           Text(
             'Jours de la semaine',
             style: GoogleFonts.poppins(

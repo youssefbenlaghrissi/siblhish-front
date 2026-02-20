@@ -766,8 +766,7 @@ class BudgetProvider extends ChangeNotifier {
         throw Exception('Les cartes doivent être chargées depuis le backend avant de mettre à jour les préférences.');
       }
       
-      // Utiliser la méthode optimisée qui retourne directement les favoris mis à jour
-      // Cela évite un appel GET supplémentaire car la réponse POST contient déjà les favoris
+      // Mise à jour des favoris puis récupération via GET /favorites/{userId}/type/CARD
       _cardFavorites = await FavoriteService.updateStatisticsCardsPreferencesWithFavorites(
         _currentUser!.id,
         cardIds,

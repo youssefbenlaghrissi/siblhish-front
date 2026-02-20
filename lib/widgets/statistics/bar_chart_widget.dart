@@ -535,8 +535,12 @@ class BarChartWidget extends StatelessWidget {
   }
 
   String _formatCurrency(double value) {
-    if (value >= 1000) {
-      return '${(value / 1000).toStringAsFixed(2)}k';
+    final absValue = value.abs();
+    if (absValue >= 1000) {
+      final inK = value / 1000;
+      // 3 décimales pour garder la valeur exacte (ex. 1765 → 1.765 k)
+      final s = inK.toStringAsFixed(3).replaceFirst(RegExp(r'0+$'), '').replaceFirst(RegExp(r'\.$'), '');
+      return '$s k';
     }
     return value.toStringAsFixed(0);
   }

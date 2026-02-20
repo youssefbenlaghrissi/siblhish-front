@@ -395,46 +395,6 @@ class _TransactionDetailsModalState extends State<TransactionDetailsModal> {
                 'Êtes-vous sûr de vouloir supprimer cette ${isIncome ? 'revenu' : 'dépense'} ?',
                 style: GoogleFonts.poppins(),
               ),
-              if (transaction.isRecurring) ...[
-                const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppTheme.primaryColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.repeat_rounded,
-                            color: AppTheme.primaryColor,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Transaction récurrente',
-                            style: GoogleFonts.poppins(
-                              fontWeight: FontWeight.w600,
-                              color: AppTheme.primaryColor,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        _getDetailedRecurrenceDescription(transaction),
-                        style: GoogleFonts.poppins(
-                          fontSize: 14,
-                          color: AppTheme.textPrimary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
             ],
           ),
         ),
