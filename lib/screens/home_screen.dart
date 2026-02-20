@@ -693,8 +693,9 @@ class _HomeScreenState extends State<HomeScreen> {
             
             // Utiliser les transactions récentes de la page d'accueil (toujours limit=3, indépendantes des filtres)
             final recentTransactions = provider.homeRecentTransactions;
+            final displayRecentTransactions = recentTransactions.take(3).toList();
             final balance = provider.balance;
-            final scheduledPayments = provider.scheduledPayments.take(5).toList();
+            final scheduledPayments = provider.scheduledPayments;
             final categories = provider.categories;
 
             return CustomScrollView(
@@ -894,7 +895,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           childCount: 3, // Afficher 3 skeletons
                         ),
                       )
-                    : recentTransactions.isEmpty
+                    : displayRecentTransactions.isEmpty
                         ? SliverToBoxAdapter(
                             child: Padding(
                               padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -926,20 +927,20 @@ class _HomeScreenState extends State<HomeScreen> {
                         : SliverList(
                             delegate: SliverChildBuilderDelegate(
                               (context, index) {
-                                final transaction = recentTransactions[index];
+                                final transaction = displayRecentTransactions[index];
                                 return Padding(
                                   padding: EdgeInsets.fromLTRB(
                                     20,
                                     0,
                                     20,
-                                    index == recentTransactions.length - 1 ? 20 : 10,
+                                    index == displayRecentTransactions.length - 1 ? 20 : 10,
                                   ),
                                   child: TransactionItem(
                                     transaction: transaction,
                                   ),
                                 );
                               },
-                              childCount: recentTransactions.length,
+                              childCount: displayRecentTransactions.length,
                             ),
                           ),
 

@@ -23,6 +23,22 @@ Future<void> _initializeLocalNotifications() async {
   );
   
   await _localNotifications.initialize(initSettings);
+
+  // Créer le canal Android (Oreo+) avec importance haute pour que les notifs s'affichent
+  final androidPlugin = _localNotifications.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+  if (androidPlugin != null) {
+    await androidPlugin.createNotificationChannel(
+      const AndroidNotificationChannel(
+        'siblhish_channel',
+        'Siblhish Notifications',
+        description: 'Notifications pour l\'application Siblhish',
+        importance: Importance.high,
+        playSound: true,
+        enableVibration: true,
+      ),
+    );
+  }
+
   _isLocalNotificationsInitialized = true;
   debugPrint('✅ Notifications locales initialisées en arrière-plan');
 }
@@ -82,7 +98,6 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
       iOS: iosDetails,
     );
     
-    // Afficher la notification locale uniquement pour les messages avec uniquement des "data"
     await _localNotifications.show(
       message.hashCode,
       title ?? body ?? 'Nouvelle notification',
@@ -90,8 +105,8 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
       notificationDetails,
       payload: message.data.toString(),
     );
-    
-    debugPrint('✅ Notification locale affichée en arrière-plan (message data uniquement)');
+
+    debugPrint('✅ Notification locale affichée en arrière-plan');
   } catch (e) {
     debugPrint('❌ Erreur lors de l\'affichage de la notification en arrière-plan: $e');
   }

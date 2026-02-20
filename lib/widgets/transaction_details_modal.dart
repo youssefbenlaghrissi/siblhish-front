@@ -46,6 +46,7 @@ class _TransactionDetailsModalState extends State<TransactionDetailsModal> {
     
     final expense = !isIncome ? transaction as Expense : null;
     final income = isIncome ? transaction as Income : null;
+    final isSyntheticFromScheduledPayment = transaction.id is String && (transaction.id as String).startsWith('sp-');
 
     return Container(
       height: MediaQuery.of(context).size.height * 0.7,
@@ -303,51 +304,64 @@ class _TransactionDetailsModalState extends State<TransactionDetailsModal> {
 
                   const SizedBox(height: 24),
 
-                  // Action Buttons
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: _isDeleting ? null : () => _handleDelete(context),
-                          icon: _isDeleting
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.red),
-                                  ),
-                                )
-                              : const Icon(Icons.delete_outline_rounded),
-                          label: Text(_isDeleting ? 'Suppression...' : 'Supprimer'),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            side: const BorderSide(color: Colors.red),
-                            foregroundColor: Colors.red,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                  // Action Buttons (masqués pour paiement planifié payé affiché comme transaction)
+                  if (isSyntheticFromScheduledPayment)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Text(
+                        'Paiement planifié payé — modifiez depuis la section Paiements planifiés.',
+                        style: GoogleFonts.poppins(
+                          fontSize: 12,
+                          color: AppTheme.textSecondary,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    )
+                  else
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: _isDeleting ? null : () => _handleDelete(context),
+                            icon: _isDeleting
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(Colors.red),
+                                    ),
+                                  )
+                                : const Icon(Icons.delete_outline_rounded),
+                            label: Text(_isDeleting ? 'Suppression...' : 'Supprimer'),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              side: const BorderSide(color: Colors.red),
+                              foregroundColor: Colors.red,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: _isDeleting ? null : () => _handleEdit(context),
-                          icon: const Icon(Icons.edit_rounded),
-                          label: const Text('Modifier'),
-                          style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            backgroundColor: AppTheme.primaryColor,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: _isDeleting ? null : () => _handleEdit(context),
+                            icon: const Icon(Icons.edit_rounded),
+                            label: const Text('Modifier'),
+                            style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              backgroundColor: AppTheme.primaryColor,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
+                      ],
+                    ),
                 ],
               ),
             ),
