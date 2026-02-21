@@ -60,23 +60,9 @@ class _RecurrenceOptionsWidgetState extends State<RecurrenceOptionsWidget> {
     } else {
       _dayOfYear = _defaultDayOfYear();
     }
-    // Synchroniser les valeurs affichées avec le parent pour qu'elles soient envoyées à l'API
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      switch (widget.frequency) {
-        case 'WEEKLY':
-          widget.onDaysOfWeekChanged(
-            _selectedDaysOfWeek.isEmpty ? null : _selectedDaysOfWeek,
-          );
-          break;
-        case 'MONTHLY':
-          widget.onDayOfMonthChanged(_dayOfMonth);
-          break;
-        case 'YEARLY':
-          widget.onDayOfYearChanged(_dayOfYear);
-          break;
-      }
-    });
+    // Ne pas pousser les valeurs par défaut vers le parent : seules les actions explicites
+    // (sélection date, +/-, jours) mettent à jour le parent. Sinon une ancienne valeur
+    // ou un défaut serait envoyé alors que l'utilisateur n'a pas renseigné le champ.
   }
 
   @override
@@ -94,23 +80,9 @@ class _RecurrenceOptionsWidgetState extends State<RecurrenceOptionsWidget> {
           _dayOfYear = widget.initialDayOfYear ?? _defaultDayOfYear();
           break;
       }
-      // Différer les callbacks au prochain frame pour éviter setState pendant la mise à jour (assertion referenceBox.attached)
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        switch (widget.frequency) {
-          case 'WEEKLY':
-            widget.onDaysOfWeekChanged(
-              _selectedDaysOfWeek.isEmpty ? null : _selectedDaysOfWeek,
-            );
-            break;
-          case 'MONTHLY':
-            widget.onDayOfMonthChanged(_dayOfMonth);
-            break;
-          case 'YEARLY':
-            widget.onDayOfYearChanged(_dayOfYear);
-            break;
-        }
-      });
+      // Ne pas pousser la valeur par défaut vers le parent au changement de fréquence :
+      // le parent a déjà mis à null les autres champs. Le champ de la nouvelle fréquence
+      // ne sera mis à jour que quand l'utilisateur interagit (date picker, +/-, jours).
     }
   }
 

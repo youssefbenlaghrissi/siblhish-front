@@ -138,11 +138,11 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
               : _descriptionController.text,
           source: _sourceController.text.isEmpty ? null : _sourceController.text,
           isRecurring: _isRecurring,
-          recurrenceFrequency: _recurrenceFrequency,
-          recurrenceEndDate: _recurrenceEndDate,
-          recurrenceDaysOfWeek: _recurrenceDaysOfWeek,
-          recurrenceDayOfMonth: _recurrenceDayOfMonth,
-          recurrenceDayOfYear: _recurrenceDayOfYear,
+          recurrenceFrequency: _isRecurring ? _recurrenceFrequency : null,
+          recurrenceEndDate: _isRecurring ? _recurrenceEndDate : null,
+          recurrenceDaysOfWeek: _isRecurring && _recurrenceFrequency == 'WEEKLY' ? _recurrenceDaysOfWeek : null,
+          recurrenceDayOfMonth: _isRecurring && _recurrenceFrequency == 'MONTHLY' ? _recurrenceDayOfMonth : null,
+          recurrenceDayOfYear: _isRecurring && _recurrenceFrequency == 'YEARLY' ? _recurrenceDayOfYear : null,
           userId: provider.currentUser!.id,
         );
         await provider.addIncome(income);
@@ -168,11 +168,11 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
               ? null
               : _locationController.text,
           isRecurring: _isRecurring,
-          recurrenceFrequency: _recurrenceFrequency,
-          recurrenceEndDate: _recurrenceEndDate,
-          recurrenceDaysOfWeek: _recurrenceDaysOfWeek,
-          recurrenceDayOfMonth: _recurrenceDayOfMonth,
-          recurrenceDayOfYear: _recurrenceDayOfYear,
+          recurrenceFrequency: _isRecurring ? _recurrenceFrequency : null,
+          recurrenceEndDate: _isRecurring ? _recurrenceEndDate : null,
+          recurrenceDaysOfWeek: _isRecurring && _recurrenceFrequency == 'WEEKLY' ? _recurrenceDaysOfWeek : null,
+          recurrenceDayOfMonth: _isRecurring && _recurrenceFrequency == 'MONTHLY' ? _recurrenceDayOfMonth : null,
+          recurrenceDayOfYear: _isRecurring && _recurrenceFrequency == 'YEARLY' ? _recurrenceDayOfYear : null,
           categoryId: _selectedCategoryId!,
           userId: provider.currentUser!.id,
         );

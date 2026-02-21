@@ -7,6 +7,7 @@ import '../models/scheduled_payment.dart';
 import '../models/category.dart';
 import '../theme/app_theme.dart';
 import 'custom_snackbar.dart';
+import 'recurrence_options_widget.dart';
 
 class AddScheduledPaymentModal extends StatefulWidget {
   const AddScheduledPaymentModal({super.key});
@@ -26,8 +27,14 @@ class _AddScheduledPaymentModalState extends State<AddScheduledPaymentModal> {
   DateTime _selectedDate = DateTime.now();
   bool _isRecurring = false;
   String? _recurrenceFrequency;
+  DateTime? _recurrenceEndDate;
+  List<int>? _recurrenceDaysOfWeek;
+  int? _recurrenceDayOfMonth;
+  int? _recurrenceDayOfYear;
   String _notificationOption = 'NONE';
   bool _isSubmitting = false;
+  bool _hasAttemptedSubmit = false;
+  bool _showWeeklyDaysError = false;
 
   final _uuid = const Uuid();
 
@@ -90,6 +97,9 @@ class _AddScheduledPaymentModalState extends State<AddScheduledPaymentModal> {
   }
 
   Future<void> _submit() async {
+    setState(() {
+      _hasAttemptedSubmit = true;
+    });
     if (!_formKey.currentState!.validate() || _isSubmitting) return;
 
     if (_selectedCategoryId == null) {
@@ -99,8 +109,17 @@ class _AddScheduledPaymentModalState extends State<AddScheduledPaymentModal> {
       return;
     }
 
+    if (_isRecurring && _recurrenceFrequency == 'WEEKLY' &&
+        (_recurrenceDaysOfWeek == null || _recurrenceDaysOfWeek!.isEmpty)) {
+      setState(() {
+        _showWeeklyDaysError = true;
+      });
+      return;
+    }
+
     setState(() {
       _isSubmitting = true;
+      _showWeeklyDaysError = false;
     });
 
     try {
@@ -114,7 +133,11 @@ class _AddScheduledPaymentModalState extends State<AddScheduledPaymentModal> {
         beneficiary: _beneficiaryController.text.isEmpty ? null : _beneficiaryController.text,
         dueDate: _selectedDate,
         isRecurring: _isRecurring,
-        recurrenceFrequency: _recurrenceFrequency,
+        recurrenceFrequency: _isRecurring ? _recurrenceFrequency : null,
+        recurrenceEndDate: _isRecurring ? _recurrenceEndDate : null,
+        recurrenceDaysOfWeek: _isRecurring && _recurrenceFrequency == 'WEEKLY' ? _recurrenceDaysOfWeek : null,
+        recurrenceDayOfMonth: _isRecurring && _recurrenceFrequency == 'MONTHLY' ? _recurrenceDayOfMonth : null,
+        recurrenceDayOfYear: _isRecurring && _recurrenceFrequency == 'YEARLY' ? _recurrenceDayOfYear : null,
         notificationOption: _notificationOption,
         userId: provider.currentUser!.id,
       );
@@ -193,7 +216,7 @@ class _AddScheduledPaymentModalState extends State<AddScheduledPaymentModal> {
               padding: const EdgeInsets.all(20),
               child: Form(
                 key: _formKey,
-                autovalidateMode: AutovalidateMode.disabled,
+                autovalidateMode: _hasAttemptedSubmit ? AutovalidateMode.always : AutovalidateMode.disabled,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -338,7 +361,13 @@ class _AddScheduledPaymentModalState extends State<AddScheduledPaymentModal> {
                       onChanged: (value) {
                         setState(() {
                           _isRecurring = value ?? false;
-                          if (!_isRecurring) _recurrenceFrequency = null;
+                          if (!_isRecurring) {
+                            _recurrenceFrequency = null;
+                            _recurrenceEndDate = null;
+                            _recurrenceDaysOfWeek = null;
+                            _recurrenceDayOfMonth = null;
+                            _recurrenceDayOfYear = null;
+                          }
                         });
                       },
                     ),
@@ -359,9 +388,51 @@ class _AddScheduledPaymentModalState extends State<AddScheduledPaymentModal> {
                         onChanged: (value) {
                           setState(() {
                             _recurrenceFrequency = value;
+                            if (value != 'WEEKLY') _recurrenceDaysOfWeek = null;
+                            if (value != 'MONTHLY') _recurrenceDayOfMonth = null;
+                            if (value != 'YEARLY') _recurrenceDayOfYear = null;
                           });
                         },
+                        validator: (value) {
+                          if (_isRecurring && value == null) {
+                            return 'Veuillez sélectionner une fréquence';
+                          }
+                          return null;
+                        },
                       ),
+                      if (_recurrenceFrequency != null) ...[
+                        const SizedBox(height: 20),
+                        RecurrenceOptionsWidget(
+                          frequency: _recurrenceFrequency,
+                          initialEndDate: _recurrenceEndDate,
+                          initialDaysOfWeek: _recurrenceDaysOfWeek,
+                          initialDayOfMonth: _recurrenceDayOfMonth,
+                          initialDayOfYear: _recurrenceDayOfYear,
+                          weeklyDaysErrorText: _showWeeklyDaysError ? 'Veuillez sélectionner au moins un jour' : null,
+                          onEndDateChanged: (date) {
+                            setState(() {
+                              _recurrenceEndDate = date;
+                            });
+                          },
+                          onDaysOfWeekChanged: (days) {
+                            setState(() {
+                              _recurrenceDaysOfWeek = days;
+                              _showWeeklyDaysError = false;
+                              if (_hasAttemptedSubmit) _formKey.currentState?.validate();
+                            });
+                          },
+                          onDayOfMonthChanged: (day) {
+                            setState(() {
+                              _recurrenceDayOfMonth = day;
+                            });
+                          },
+                          onDayOfYearChanged: (day) {
+                            setState(() {
+                              _recurrenceDayOfYear = day;
+                            });
+                          },
+                        ),
+                      ],
                       const SizedBox(height: 16),
                     ],
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 import '../providers/budget_provider.dart';
 import '../models/expense.dart';
 import '../models/income.dart';
@@ -125,6 +126,13 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   void _applyFilters() {
     // Recharger depuis le backend avec les nouveaux filtres
     _loadTransactions();
+  }
+
+  /// Format d'en-tête de groupe : "Lundi 15 Février 2026" (jour + date en français)
+  static String _formatDateGroupHeader(DateTime date) {
+    final formatted = DateFormat('EEEE d MMMM yyyy', 'fr').format(date);
+    if (formatted.isEmpty) return formatted;
+    return formatted[0].toUpperCase() + formatted.substring(1);
   }
 
   void _showFilterDialog() {
@@ -493,27 +501,69 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                   );
                 }
 
+                // Grouper par date (jour) — clé = date normalisée à minuit
+                final Map<DateTime, List<dynamic>> grouped = {};
+                for (final t in transactions) {
+                  final dateKey = DateTime(t.date.year, t.date.month, t.date.day);
+                  grouped.putIfAbsent(dateKey, () => []).add(t);
+                }
+                // Trier les dates de la plus récente à la plus ancienne
+                final sortedDates = grouped.keys.toList()..sort((a, b) => b.compareTo(a));
+
+                int itemCount = 0;
+                for (final d in sortedDates) {
+                  itemCount += 1 + grouped[d]!.length; // 1 en-tête + N transactions
+                }
+
                 return ListView.builder(
                   padding: const EdgeInsets.symmetric(vertical: 8),
-                  itemCount: transactions.length,
+                  itemCount: itemCount,
                   itemBuilder: (context, index) {
-                    final transaction = transactions[index];
-                    return Padding(
-                      padding: EdgeInsets.fromLTRB(
-                        20,
-                        0,
-                        20,
-                        index == transactions.length - 1 ? 20 : 8,
-                      ),
-                      child: TransactionItem(
-                        transaction: transaction,
-                        category: transaction is Expense
-                            ? provider.categories
-                                .where((Category c) => c.id == transaction.categoryId)
-                                .firstOrNull
-                            : null,
-                      ),
-                    );
+                    int remaining = index;
+                    for (final dateKey in sortedDates) {
+                      final list = grouped[dateKey]!;
+                      if (remaining == 0) {
+                        // En-tête de date (jour + date complète)
+                        final label = _formatDateGroupHeader(dateKey);
+                        return Padding(
+                          padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              label,
+                              style: GoogleFonts.poppins(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: AppTheme.textPrimary,
+                              ),
+                            ),
+                          ),
+                        );
+                      }
+                      remaining--;
+                      if (remaining < list.length) {
+                        final transaction = list[remaining];
+                        final isLastItem = (dateKey == sortedDates.last && remaining == list.length - 1);
+                        return Padding(
+                          padding: EdgeInsets.fromLTRB(
+                            20,
+                            0,
+                            20,
+                            isLastItem ? 20 : 8,
+                          ),
+                          child: TransactionItem(
+                            transaction: transaction,
+                            category: transaction is Expense
+                                ? provider.categories
+                                    .where((Category c) => c.id == transaction.categoryId)
+                                    .firstOrNull
+                                : null,
+                          ),
+                        );
+                      }
+                      remaining -= list.length;
+                    }
+                    return const SizedBox.shrink();
                   },
                 );
               },

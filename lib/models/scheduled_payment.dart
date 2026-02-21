@@ -8,6 +8,10 @@ class ScheduledPayment {
   final DateTime dueDate;
   final bool isRecurring;
   final String? recurrenceFrequency; // DAILY, WEEKLY, MONTHLY, YEARLY
+  final DateTime? recurrenceEndDate;
+  final List<int>? recurrenceDaysOfWeek; // 1=Monday .. 7=Sunday
+  final int? recurrenceDayOfMonth;
+  final int? recurrenceDayOfYear;
   final String notificationOption; // NONE, ON_DUE_DATE, ONE_DAY_BEFORE, THREE_DAYS_BEFORE
   final String userId;
   final bool isPaid;
@@ -23,6 +27,10 @@ class ScheduledPayment {
     required this.dueDate,
     this.isRecurring = false,
     this.recurrenceFrequency,
+    this.recurrenceEndDate,
+    this.recurrenceDaysOfWeek,
+    this.recurrenceDayOfMonth,
+    this.recurrenceDayOfYear,
     this.notificationOption = 'NONE',
     required this.userId,
     this.isPaid = false,
@@ -38,6 +46,10 @@ class ScheduledPayment {
         'dueDate': dueDate.toIso8601String().split('.')[0],
         'isRecurring': isRecurring,
         'recurrenceFrequency': recurrenceFrequency,
+        'recurrenceEndDate': recurrenceEndDate?.toIso8601String().split('.')[0],
+        'recurrenceDaysOfWeek': recurrenceDaysOfWeek,
+        'recurrenceDayOfMonth': recurrenceDayOfMonth,
+        'recurrenceDayOfYear': recurrenceDayOfYear,
         'notificationOption': notificationOption,
         'userId': int.tryParse(userId) ?? userId,
         'isPaid': isPaid,
@@ -53,6 +65,19 @@ class ScheduledPayment {
       }
     }
     
+    DateTime? recurrenceEndDate;
+    if (json['recurrenceEndDate'] != null) {
+      try {
+        recurrenceEndDate = DateTime.parse(json['recurrenceEndDate']);
+      } catch (_) {
+        recurrenceEndDate = null;
+      }
+    }
+    List<int>? recurrenceDaysOfWeek;
+    if (json['recurrenceDaysOfWeek'] != null) {
+      recurrenceDaysOfWeek = List<int>.from(json['recurrenceDaysOfWeek'] as List);
+    }
+
     return ScheduledPayment(
       id: json['id'].toString(),
       name: json['name'] ?? '',
@@ -63,6 +88,10 @@ class ScheduledPayment {
       dueDate: DateTime.parse(json['dueDate']),
       isRecurring: json['isRecurring'] ?? false,
       recurrenceFrequency: json['recurrenceFrequency'],
+      recurrenceEndDate: recurrenceEndDate,
+      recurrenceDaysOfWeek: recurrenceDaysOfWeek,
+      recurrenceDayOfMonth: json['recurrenceDayOfMonth'],
+      recurrenceDayOfYear: json['recurrenceDayOfYear'],
       notificationOption: json['notificationOption'] ?? 'NONE',
       userId: json['userId'].toString(),
       isPaid: json['isPaid'] ?? false,
@@ -80,6 +109,10 @@ class ScheduledPayment {
     DateTime? dueDate,
     bool? isRecurring,
     String? recurrenceFrequency,
+    DateTime? recurrenceEndDate,
+    List<int>? recurrenceDaysOfWeek,
+    int? recurrenceDayOfMonth,
+    int? recurrenceDayOfYear,
     String? notificationOption,
     String? userId,
     bool? isPaid,
@@ -95,6 +128,10 @@ class ScheduledPayment {
       dueDate: dueDate ?? this.dueDate,
       isRecurring: isRecurring ?? this.isRecurring,
       recurrenceFrequency: recurrenceFrequency ?? this.recurrenceFrequency,
+      recurrenceEndDate: recurrenceEndDate ?? this.recurrenceEndDate,
+      recurrenceDaysOfWeek: recurrenceDaysOfWeek ?? this.recurrenceDaysOfWeek,
+      recurrenceDayOfMonth: recurrenceDayOfMonth ?? this.recurrenceDayOfMonth,
+      recurrenceDayOfYear: recurrenceDayOfYear ?? this.recurrenceDayOfYear,
       notificationOption: notificationOption ?? this.notificationOption,
       userId: userId ?? this.userId,
       isPaid: isPaid ?? this.isPaid,

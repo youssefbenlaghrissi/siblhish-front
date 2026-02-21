@@ -385,6 +385,44 @@ class _ScheduledPaymentDetailsModalState extends State<ScheduledPaymentDetailsMo
                       ),
                     ),
 
+                  // Recurrence end date (si défini)
+                  if (payment.isRecurring && payment.recurrenceEndDate != null)
+                    _DetailRow(
+                      icon: Icons.calendar_today_rounded,
+                      label: 'Jusqu\'au',
+                      value: Text(
+                        dateFormatter.format(payment.recurrenceEndDate!),
+                        style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          color: AppTheme.textPrimary,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                      ),
+                    ),
+
+                  // Jours de la semaine (hebdomadaire)
+                  if (payment.isRecurring &&
+                      payment.recurrenceFrequency == 'WEEKLY' &&
+                      payment.recurrenceDaysOfWeek != null &&
+                      payment.recurrenceDaysOfWeek!.isNotEmpty) ...[
+                    _DetailRow(
+                      icon: Icons.today_rounded,
+                      label: 'Jours',
+                      value: Text(
+                        payment.recurrenceDaysOfWeek!
+                            .map((d) => _weekDayLabel(d))
+                            .join(', '),
+                        style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          color: AppTheme.textPrimary,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 2,
+                      ),
+                    ),
+                  ],
+
                   // Notification Option
                   _DetailRow(
                     icon: Icons.notifications_rounded,
@@ -558,6 +596,13 @@ class _ScheduledPaymentDetailsModalState extends State<ScheduledPaymentDetailsMo
       default:
         return method;
     }
+  }
+
+  static const List<String> _weekDays = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
+
+  String _weekDayLabel(int dayIndex) {
+    if (dayIndex >= 1 && dayIndex <= 7) return _weekDays[dayIndex - 1];
+    return 'Jour $dayIndex';
   }
 
   String _getRecurrenceFrequencyLabel(String frequency) {

@@ -17,6 +17,7 @@ class ScheduledPaymentService {
 
   // Créer un paiement planifié
   static Future<ScheduledPayment> createScheduledPayment(Map<String, dynamic> paymentData) async {
+    debugPrint('[ScheduledPaymentService] createScheduledPayment - body: $paymentData');
     final response = await ApiService.post('/scheduled-payments', paymentData);
     final data = response['data'] as Map<String, dynamic>;
     return ScheduledPayment.fromJson(data);
@@ -25,6 +26,8 @@ class ScheduledPaymentService {
   // Mettre à jour un paiement planifié
   static Future<ScheduledPayment> updateScheduledPayment(
       String paymentId, Map<String, dynamic> paymentData) async {
+    debugPrint('[ScheduledPaymentService] updateScheduledPayment - paymentId: $paymentId');
+    debugPrint('[ScheduledPaymentService] updateScheduledPayment - body: $paymentData');
     final response = await ApiService.put('/scheduled-payments/$paymentId', paymentData);
     final data = response['data'] as Map<String, dynamic>;
     return ScheduledPayment.fromJson(data);
