@@ -54,10 +54,13 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   debugPrint('📬 Data: ${message.data}');
   
   // Si le message contient un payload "notification", Firebase l'affiche automatiquement
-  // On n'affiche une notification locale que si le message contient uniquement des "data"
+  // avec le style système (souvent une ligne, pas d'extension pour voir tout le détail).
+  // Pour que TOUTES les notifications soient extensibles (BigTextStyle), le backend doit
+  // envoyer des messages "data-only" (sans bloc "notification"), afin que ce handler
+  // les affiche avec BigTextStyleInformation.
   if (message.notification != null) {
-    debugPrint('✅ Notification affichée automatiquement par Firebase (payload notification présent)');
-    return; // Firebase affiche déjà la notification, pas besoin d'en afficher une autre
+    debugPrint('✅ Notification affichée par Firebase (payload notification) → style système, pas BigTextStyle');
+    return;
   }
   
   // Si le message contient uniquement des "data", on doit afficher une notification locale
@@ -75,8 +78,11 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     // Initialiser les notifications locales si pas déjà fait
     await _initializeLocalNotifications();
     
-    // Afficher la notification locale
-    const androidDetails = AndroidNotificationDetails(
+    final notifTitle = title ?? body ?? 'Nouvelle notification';
+    final notifBody = body ?? '';
+
+    // BigTextStyle permet à l'utilisateur d'étendre la notification pour voir tout le détail
+    final androidDetails = AndroidNotificationDetails(
       'siblhish_channel',
       'Siblhish Notifications',
       channelDescription: 'Notifications pour l\'application Siblhish',
@@ -85,6 +91,10 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
       showWhen: true,
       enableVibration: true,
       playSound: true,
+      styleInformation: BigTextStyleInformation(
+        notifBody,
+        contentTitle: notifTitle,
+      ),
     );
     
     const iosDetails = DarwinNotificationDetails(
@@ -93,15 +103,15 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
       presentSound: true,
     );
     
-    const notificationDetails = NotificationDetails(
+    final notificationDetails = NotificationDetails(
       android: androidDetails,
       iOS: iosDetails,
     );
     
     await _localNotifications.show(
       message.hashCode,
-      title ?? body ?? 'Nouvelle notification',
-      body ?? '',
+      notifTitle,
+      notifBody,
       notificationDetails,
       payload: message.data.toString(),
     );

@@ -181,13 +181,21 @@ class PushNotificationService {
   }
 
   /// Afficher une notification locale quand l'app est au premier plan
+  /// BigTextStyle permet d'étendre la notification pour consulter tout le détail
   static Future<void> _showLocalNotification(RemoteMessage message) async {
-    const androidDetails = AndroidNotificationDetails(
+    final title = message.notification?.title ?? 'Nouvelle notification';
+    final body = message.notification?.body ?? '';
+
+    final androidDetails = AndroidNotificationDetails(
       'siblhish_channel',
       'Siblhish Notifications',
       channelDescription: 'Notifications pour l\'application Siblhish',
       importance: Importance.high,
       priority: Priority.high,
+      styleInformation: BigTextStyleInformation(
+        body,
+        contentTitle: title,
+      ),
     );
 
     const iosDetails = DarwinNotificationDetails(
@@ -196,15 +204,15 @@ class PushNotificationService {
       presentSound: true,
     );
 
-    const notificationDetails = NotificationDetails(
+    final notificationDetails = NotificationDetails(
       android: androidDetails,
       iOS: iosDetails,
     );
 
     await _localNotifications.show(
       message.hashCode,
-      message.notification?.title ?? 'Nouvelle notification',
-      message.notification?.body ?? '',
+      title,
+      body,
       notificationDetails,
       payload: message.data.toString(),
     );

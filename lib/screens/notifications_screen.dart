@@ -129,14 +129,18 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   Future<void> _markAllAsRead() async {
-    try {
-      final provider = context.read<BudgetProvider>();
-      final userId = provider.currentUser?.id;
-      if (userId == null) return;
+    final provider = context.read<BudgetProvider>();
+    final userId = provider.currentUser?.id;
+    if (userId == null) return;
 
+    // Afficher le skeleton immédiatement au tap (avant tout await)
+    if (mounted) setState(() => _isLoading = true);
+
+    try {
       await NotificationService.markAllAsRead(userId);
       await _loadNotifications();
     } catch (e) {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 

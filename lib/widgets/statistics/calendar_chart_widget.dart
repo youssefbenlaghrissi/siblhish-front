@@ -79,10 +79,10 @@ class CalendarChartWidget extends StatelessWidget {
           ),
           const SizedBox(height: 20),
           
-          // En-têtes des jours de la semaine
+          // En-têtes des jours de la semaine (en hebdo : Lun→Dim pour correspondre à la plage 23 fév - 1 mars)
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam']
+            children: (period == 'weekly' ? ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'] : ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'])
                 .map((day) => SizedBox(
                       width: 45,
                       child: Center(
@@ -275,8 +275,8 @@ class CalendarChartWidget extends StatelessWidget {
         break;
       
       case 'weekly':
-        // Calculer le dimanche de la semaine (premier jour de la semaine)
-        final startOfWeek = selectedDate.subtract(Duration(days: selectedDate.weekday % 7));
+        // Même règle que l'écran Statistiques : semaine lundi → dimanche
+        final startOfWeek = selectedDate.subtract(Duration(days: selectedDate.weekday - 1));
         startDate = DateTime(startOfWeek.year, startOfWeek.month, startOfWeek.day);
         endDate = startDate.add(const Duration(days: 6));
         endDate = DateTime(endDate.year, endDate.month, endDate.day, 23, 59, 59);

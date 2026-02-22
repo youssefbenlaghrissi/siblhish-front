@@ -12,6 +12,7 @@ class HomeService {
   }
 
   // Obtenir les transactions récentes (traitement côté backend)
+  // Payload GET /home/transactions/:userId : limit, type?, dateRange?, startDate?, endDate?, minAmount?, maxAmount?, categoryId?
   static Future<List<dynamic>> getRecentTransactions(
     String userId, {
     int limit = 3,
@@ -21,6 +22,7 @@ class HomeService {
     DateTime? endDate,
     double? minAmount,
     double? maxAmount,
+    String? categoryId,
   }) async {
     // Construire l'URL avec les paramètres de filtres
     final queryParams = <String, String>{
@@ -51,6 +53,10 @@ class HomeService {
     
     if (maxAmount != null) {
       queryParams['maxAmount'] = maxAmount.toString();
+    }
+    
+    if (categoryId != null && categoryId.isNotEmpty) {
+      queryParams['categoryId'] = categoryId;
     }
     
     final queryString = queryParams.entries

@@ -204,7 +204,7 @@ class PieChartWidget extends StatelessWidget {
       sections.add(
         PieChartSectionData(
           value: item.totalAmount,
-          title: '${item.percentage.toStringAsFixed(0)}%',
+          title: '${item.percentage.toStringAsFixed(2)}%',
           color: categoryColor,
           radius: 60,
           titleStyle: GoogleFonts.poppins(
@@ -220,7 +220,7 @@ class PieChartWidget extends StatelessWidget {
       sections.add(
         PieChartSectionData(
           value: otherTotal,
-          title: '${((otherTotal / total) * 100).toStringAsFixed(0)}%',
+          title: '${((otherTotal / total) * 100).toStringAsFixed(2)}%',
           color: Colors.grey,
           radius: 60,
           titleStyle: GoogleFonts.poppins(
@@ -364,7 +364,7 @@ class _CategoryLegendItem extends StatelessWidget {
                         ),
                       ),
                       child: Text(
-                        '${percentage.toStringAsFixed(1)}%',
+                        '${percentage.toStringAsFixed(2)}%',
                         style: GoogleFonts.poppins(
                           fontSize: 10,
                           fontWeight: FontWeight.bold,

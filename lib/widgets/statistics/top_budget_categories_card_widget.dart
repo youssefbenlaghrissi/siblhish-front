@@ -131,20 +131,15 @@ class TopBudgetCategoriesCardWidget extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      if (item.icon.isNotEmpty)
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: _parseColor(item.color).withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Icon(
-                            _getIconData(item.icon),
-                            color: _parseColor(item.color),
-                            size: 20,
-                          ),
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: _parseColor(item.color).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
                         ),
-                      if (item.icon.isNotEmpty) const SizedBox(width: 12),
+                        child: _buildCategoryIcon(item.icon, item.color),
+                      ),
+                      const SizedBox(width: 12),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -226,6 +221,24 @@ class TopBudgetCategoriesCardWidget extends StatelessWidget {
     } catch (e) {
       return AppTheme.primaryColor;
     }
+  }
+
+  /// Affiche l'icône de la catégorie : emoji (ex. 🍔), Material icon (ex. restaurant), ou défaut si vide.
+  Widget _buildCategoryIcon(String icon, String colorString) {
+    final color = _parseColor(colorString);
+    if (icon.trim().isEmpty) {
+      return Icon(Icons.category_rounded, color: color, size: 20);
+    }
+    // Noms reconnus → icône Material
+    final iconData = _getIconData(icon);
+    if (iconData != Icons.category_rounded) {
+      return Icon(iconData, color: color, size: 20);
+    }
+    // Sinon afficher le champ tel quel (emoji ex. 🍔, ou autre)
+    return Text(
+      icon,
+      style: const TextStyle(fontSize: 20),
+    );
   }
 
   IconData _getIconData(String iconName) {

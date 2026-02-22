@@ -401,6 +401,7 @@ class BudgetProvider extends ChangeNotifier {
     DateTime? endDate,
     double? minAmount,
     double? maxAmount,
+    String? categoryId,
   }) async {
     if (_currentUser == null) return;
     
@@ -416,6 +417,7 @@ class BudgetProvider extends ChangeNotifier {
       'endDate': endDate,
       'minAmount': minAmount,
       'maxAmount': maxAmount,
+      'categoryId': categoryId,
     };
     
     final userId = _currentUser!.id;
@@ -430,6 +432,7 @@ class BudgetProvider extends ChangeNotifier {
         endDate: endDate,
         minAmount: minAmount,
         maxAmount: maxAmount,
+        categoryId: categoryId,
       );
       
       _filteredTransactions.clear();
@@ -454,6 +457,7 @@ class BudgetProvider extends ChangeNotifier {
         endDate: _lastFilteredTransactionsParams!['endDate'],
         minAmount: _lastFilteredTransactionsParams!['minAmount'],
         maxAmount: _lastFilteredTransactionsParams!['maxAmount'],
+        categoryId: _lastFilteredTransactionsParams!['categoryId'],
       );
     } else if (_filteredTransactions.isNotEmpty) {
       // Si on a des transactions filtrées mais pas de paramètres stockés, recharger toutes les transactions
@@ -479,9 +483,8 @@ class BudgetProvider extends ChangeNotifier {
         if (_balanceData != null) {
           futures.add(_loadBalance(userId));
         }
-        if (_homeRecentTransactions.isNotEmpty) {
-          futures.add(loadRecentTransactions(limit: 3));
-        }
+        // Toujours recharger les transactions récentes (même si liste vide, ex. compte nouveau)
+        futures.add(loadRecentTransactions(limit: 3));
         break;
         
       default:
@@ -492,9 +495,8 @@ class BudgetProvider extends ChangeNotifier {
         if (_balanceData != null) {
           futures.add(_loadBalance(userId));
         }
-        if (_homeRecentTransactions.isNotEmpty) {
-          futures.add(loadRecentTransactions(limit: 3));
-        }
+        // Toujours recharger les transactions récentes pour l'accueil (ex. compte nouveau)
+        futures.add(loadRecentTransactions(limit: 3));
         break;
     }
     
@@ -575,42 +577,26 @@ class BudgetProvider extends ChangeNotifier {
     }
   }
 
-  // Vérifier si on a besoin de la liste complète des dépenses
+  // Vérifier si on a besoin de la liste complète des dépenses (cartes 1-7 uniquement)
   bool _needsExpensesList(List<String> cardIds) {
-    // barChart (id=1), transactionCountCard (id=8) et topExpenseCard (id=6) ont besoin de toutes les dépenses
-    final needs = cardIds.contains('1') || 
-                  cardIds.contains('bar_chart') ||
-                  cardIds.contains('8') || 
-                  cardIds.contains('transaction_count_card') ||
-                  cardIds.contains('6') ||
-                  cardIds.contains('top_expense_card');
-    return needs;
+    return cardIds.contains('1') || cardIds.contains('bar_chart') ||
+           cardIds.contains('5') || cardIds.contains('transaction_count_card');
   }
 
   // Vérifier si on a besoin de la liste complète des revenus
   bool _needsIncomesList(List<String> cardIds) {
-    // barChart (id=1) et transactionCountCard (id=8) ont besoin de tous les revenus
-    return cardIds.contains('1') || 
-           cardIds.contains('bar_chart') ||
-           cardIds.contains('8') || 
-           cardIds.contains('transaction_count_card');
+    return cardIds.contains('1') || cardIds.contains('bar_chart') ||
+           cardIds.contains('5') || cardIds.contains('transaction_count_card');
   }
 
-  // Vérifier si on a besoin du balance
+  // Vérifier si on a besoin du balance (aucune carte restante ne l'utilise)
   bool _needsBalance(List<String> cardIds) {
-    // balanceCard (id=3), savingsCard (id=4), et goalsProgressCard (id=12) ont besoin du balance
-    return cardIds.contains('3') || 
-           cardIds.contains('balance_card') ||
-           cardIds.contains('4') ||
-           cardIds.contains('savings_card') ||
-           cardIds.contains('12') ||
-           cardIds.contains('goals_progress_card');
+    return false;
   }
-  
-  // Vérifier si on a besoin des objectifs
+
+  // Vérifier si on a besoin des objectifs (aucune carte restante ne les utilise)
   bool _needsGoals(List<String> cardIds) {
-    // goalsProgressCard (id=12) a besoin des objectifs
-    return cardIds.contains('12') || cardIds.contains('goals_progress_card');
+    return false;
   }
 
   // Charger les cartes disponibles depuis l'API en arrière-plan

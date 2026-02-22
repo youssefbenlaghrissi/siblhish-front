@@ -28,6 +28,7 @@ class _BudgetSuggestionResultsScreenState extends State<BudgetSuggestionResultsS
   List<TextEditingController> _amountControllers = [];
   List<Map<String, dynamic>> _modifiedBudgets = [];
   List<bool> _isRecurringList = []; // Liste pour gérer isRecurring pour chaque budget
+  String? _amountErrorMessage; // Message d'alerte au-dessus des suggestions (montant vide ou invalide)
 
   @override
   void initState() {
@@ -57,14 +58,13 @@ class _BudgetSuggestionResultsScreenState extends State<BudgetSuggestionResultsS
     if (index >= 0 && index < _amountControllers.length && index < _modifiedBudgets.length) {
       final controller = _amountControllers[index];
       final text = controller.text.replaceAll(RegExp(r'[^\d.]'), '');
-      if (text.isNotEmpty) {
-        final newAmount = double.tryParse(text) ?? 0.0;
-        _modifiedBudgets[index]['amount'] = newAmount;
-        // Recalculer le pourcentage
-        final newPercentage = (newAmount / widget.monthlyIncome) * 100;
-        _modifiedBudgets[index]['percentage'] = newPercentage;
-        setState(() {}); // Mettre à jour l'affichage
-      }
+      final newAmount = text.isEmpty ? 0.0 : (double.tryParse(text) ?? 0.0);
+      _modifiedBudgets[index]['amount'] = newAmount;
+      final newPercentage = widget.monthlyIncome > 0 ? (newAmount / widget.monthlyIncome) * 100 : 0.0;
+      _modifiedBudgets[index]['percentage'] = newPercentage;
+      setState(() {
+        _amountErrorMessage = null; // Effacer l'alerte dès que l'utilisateur modifie un montant
+      });
     }
   }
 
@@ -126,7 +126,20 @@ class _BudgetSuggestionResultsScreenState extends State<BudgetSuggestionResultsS
                       color: Colors.black87,
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  if (_amountErrorMessage != null) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      _amountErrorMessage!,
+                      style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        color: Colors.red,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ] else ...[
+                    const SizedBox(height: 16),
+                  ],
                   ...budgets.asMap().entries.map((entry) => _buildBudgetCard(entry.value, entry.key)),
                 ],
               ),
@@ -213,6 +226,34 @@ class _BudgetSuggestionResultsScreenState extends State<BudgetSuggestionResultsS
       
       // Utiliser les budgets modifiés par l'utilisateur
       final budgetsToUse = _modifiedBudgets;
+
+      // Validation : aucun montant ne doit être vide ou nul
+      for (int i = 0; i < budgetsToUse.length; i++) {
+        final amount = (budgetsToUse[i]['amount'] as num?)?.toDouble();
+        if (amount == null || amount <= 0) {
+          if (mounted) {
+            setState(() {
+              _isCreating = false;
+              _amountErrorMessage = 'Veuillez renseigner un montant pour chaque catégorie (montant > 0).';
+            });
+          }
+          return;
+        }
+      }
+
+      // Validation : le budget total ne doit pas dépasser le revenu mensuel
+      final totalBudgetToValidate = budgetsToUse.fold<double>(0.0, (sum, budget) =>
+          sum + ((budget['amount'] as num?)?.toDouble() ?? 0.0));
+      if (widget.monthlyIncome > 0 && totalBudgetToValidate > widget.monthlyIncome) {
+        if (mounted) {
+          final incomeFormatted = NumberFormat.currency(symbol: 'MAD ', decimalDigits: 0).format(widget.monthlyIncome);
+          setState(() {
+            _isCreating = false;
+            _amountErrorMessage = 'Le budget total ne doit pas dépasser votre revenu mensuel ($incomeFormatted).';
+          });
+        }
+        return;
+      }
       
       // Vérifier s'il y a des budgets existants à supprimer (charger seulement si nécessaire)
       // On charge les budgets pour vérifier les doublons
@@ -504,8 +545,12 @@ class _BudgetSuggestionResultsScreenState extends State<BudgetSuggestionResultsS
   }
 
   Widget _buildProgressBar(double totalBudget, double suggestedSavings) {
-    final budgetPercentage = (totalBudget / widget.monthlyIncome) * 100;
-    final savingsPercentage = (suggestedSavings / widget.monthlyIncome) * 100;
+    final income = widget.monthlyIncome > 0 ? widget.monthlyIncome : 1.0;
+    final budgetPercentage = ((totalBudget / income) * 100).clamp(0.0, 100.0);
+    final savingsPercentage = ((suggestedSavings / income) * 100).clamp(0.0, 100.0);
+    final budgetFlex = (budgetPercentage * 10).round().clamp(0, 1000);
+    final savingsFlex = (savingsPercentage * 10).round().clamp(0, 1000);
+    final restFlex = (1000 - budgetFlex - savingsFlex).clamp(0, 1000);
     
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -535,29 +580,19 @@ class _BudgetSuggestionResultsScreenState extends State<BudgetSuggestionResultsS
           borderRadius: BorderRadius.circular(8),
           child: SizedBox(
             height: 12,
-            child: Stack(
+            child: Row(
               children: [
-                // Fond
-                Container(
-                  width: double.infinity,
-                  color: Colors.grey[200],
+                Expanded(
+                  flex: budgetFlex,
+                  child: Container(color: AppTheme.primaryColor),
                 ),
-                // Budget
-                FractionallySizedBox(
-                  widthFactor: budgetPercentage / 100,
-                  child: Container(
-                    color: AppTheme.primaryColor,
-                  ),
+                Expanded(
+                  flex: savingsFlex,
+                  child: Container(color: Colors.green),
                 ),
-                // Épargne
-                Positioned(
-                  right: 0,
-                  child: FractionallySizedBox(
-                    widthFactor: savingsPercentage / 100,
-                    child: Container(
-                      color: Colors.green,
-                    ),
-                  ),
+                Expanded(
+                  flex: restFlex,
+                  child: Container(color: Colors.grey[200]),
                 ),
               ],
             ),

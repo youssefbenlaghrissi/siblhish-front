@@ -412,10 +412,6 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                 ),
         );
 
-      case StatisticsCardType.savingsCard:
-        // Graphique désactivé - retourner un widget vide
-        return const SizedBox.shrink();
-
       case StatisticsCardType.averageExpenseCard:
         // Calculer la moyenne des dépenses pour la période sélectionnée
         // Utiliser les données du monthlySummary qui sont filtrées par période
@@ -468,8 +464,6 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
             selectedDate: _selectedDate,
           ),
         );
-
-      // Carte "Dépense la Plus Élevée" supprimée
 
       case StatisticsCardType.averageIncomeCard:
         // Calculer la moyenne des revenus pour la période sélectionnée
@@ -560,18 +554,6 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
           ),
         );
 
-      case StatisticsCardType.topCategoryCard:
-        // Graphique désactivé - retourner un widget vide
-        return const SizedBox.shrink();
-
-      case StatisticsCardType.scheduledPaymentsCard:
-        // Graphique désactivé - retourner un widget vide
-        return const SizedBox.shrink();
-
-      case StatisticsCardType.budgetVsActualChart:
-        // Graphique désactivé - retourner un widget vide
-        return const SizedBox.shrink();
-
       case StatisticsCardType.topBudgetCategoriesCard:
         final dateRange = _calculateDateRange(_selectedPeriod, _selectedDate);
         final startDate = dateRange['startDate']!;
@@ -583,10 +565,6 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
             isLoading: _isLoadingCharts,
           ),
         );
-
-      case StatisticsCardType.budgetEfficiencyCard:
-        // Graphique désactivé - retourner un widget vide
-        return const SizedBox.shrink();
 
       case StatisticsCardType.budgetDistributionPieChart:
         final dateRange = _calculateDateRange(_selectedPeriod, _selectedDate);
@@ -600,17 +578,6 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
           ),
         );
 
-      case StatisticsCardType.topExpenseCard:
-        // Graphique désactivé - retourner un widget vide
-        return const SizedBox.shrink();
-
-      case StatisticsCardType.balanceCard:
-        // Graphique désactivé - retourner un widget vide
-        return const SizedBox.shrink();
-
-      case StatisticsCardType.goalsProgressCard:
-        // Graphique désactivé - retourner un widget vide
-        return const SizedBox.shrink();
     }
   }
 
@@ -778,44 +745,6 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                   child: SizedBox(height: 16),
                 ),
 
-                // Summary Cards (toujours visibles)
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      children: [
-                        // Solde global en premier avec background coloré
-                        _BalanceSummaryCard(
-                          balance: provider.balance,
-                        ),
-                        const SizedBox(height: 12),
-                        // Revenus et Dépenses au-dessus du solde
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _SummaryCard(
-                                title: 'Revenus totaux',
-                                amount: provider.totalIncome,
-                                color: AppTheme.incomeColor,
-                                icon: Icons.trending_up_rounded,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: _SummaryCard(
-                                title: 'Dépenses totales',
-                                amount: provider.totalExpenses,
-                                color: AppTheme.expenseColor,
-                                icon: Icons.trending_down_rounded,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
                 // Filtre de période avec icône de filtre fixe à droite
                 SliverToBoxAdapter(
                   child: Padding(
@@ -894,151 +823,6 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
             );
           },
         ),
-      ),
-    );
-  }
-}
-
-class _BalanceSummaryCard extends StatelessWidget {
-  final double balance;
-
-  const _BalanceSummaryCard({
-    required this.balance,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final formatter = NumberFormat.currency(symbol: 'MAD ', decimalDigits: 0);
-    final balanceColor = balance >= 0 ? AppTheme.incomeColor : AppTheme.expenseColor;
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: balance >= 0 
-            ? AppTheme.incomeColor.withOpacity(0.2) 
-            : AppTheme.expenseColor.withOpacity(0.2),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: balanceColor,
-          width: 2.5,
-        ),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            Icons.account_balance_wallet_rounded,
-            color: balanceColor,
-            size: 24,
-          ),
-          const SizedBox(width: 8),
-          Flexible(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: balanceColor.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                'Solde global',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.poppins(
-                  fontSize: 11,
-                  color: balanceColor,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ),
-          const Spacer(),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text(
-              formatter.format(balance),
-              style: GoogleFonts.poppins(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: balanceColor,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SummaryCard extends StatelessWidget {
-  final String title;
-  final double amount;
-  final Color color;
-  final IconData icon;
-  final bool isBalance;
-
-  const _SummaryCard({
-    required this.title,
-    required this.amount,
-    required this.color,
-    required this.icon,
-    this.isBalance = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final formatter = NumberFormat.currency(symbol: 'MAD ', decimalDigits: 0);
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isBalance 
-            ? (amount >= 0 ? AppTheme.incomeColor.withOpacity(0.2) : AppTheme.expenseColor.withOpacity(0.2))
-            : color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isBalance 
-              ? (amount >= 0 ? AppTheme.incomeColor : AppTheme.expenseColor)
-              : color.withOpacity(0.3),
-          width: isBalance ? 2.5 : 1,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, color: color, size: 24),
-              const SizedBox(width: 8),
-              Flexible(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: color.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.poppins(
-                      fontSize: 11,
-                      color: color,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            formatter.format(amount),
-            style: GoogleFonts.poppins(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
-          ),
-        ],
       ),
     );
   }

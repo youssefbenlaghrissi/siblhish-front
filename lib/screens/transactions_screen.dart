@@ -19,6 +19,7 @@ class TransactionsScreen extends StatefulWidget {
   final DateTime? initialEndDate;
   final double? initialMinAmount;
   final double? initialMaxAmount;
+  final String? initialCategoryId;
 
   const TransactionsScreen({
     super.key,
@@ -29,6 +30,7 @@ class TransactionsScreen extends StatefulWidget {
     this.initialEndDate,
     this.initialMinAmount,
     this.initialMaxAmount,
+    this.initialCategoryId,
   });
 
   @override
@@ -43,6 +45,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   DateTime? _filterEndDate;
   double? _filterMinAmount;
   double? _filterMaxAmount;
+  String? _filterCategoryId;
   bool _hasActiveFilters = false;
   bool _isLoading = false;
 
@@ -56,10 +59,12 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     _filterEndDate = widget.initialEndDate;
     _filterMinAmount = widget.initialMinAmount;
     _filterMaxAmount = widget.initialMaxAmount;
+    _filterCategoryId = widget.initialCategoryId;
     _hasActiveFilters = _filterType != null ||
         _filterDateRange != null ||
         _filterMinAmount != null ||
-        _filterMaxAmount != null;
+        _filterMaxAmount != null ||
+        _filterCategoryId != null;
 
     // OPTIMISATION : Ne charger que si l'écran est visible (évite le double appel API)
     if (widget.isVisible) {
@@ -106,6 +111,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
         endDate: _filterEndDate,
         minAmount: _filterMinAmount,
         maxAmount: _filterMaxAmount,
+        categoryId: _filterCategoryId,
       );
     } catch (e) {
       if (mounted) {
@@ -141,12 +147,16 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     String? tempDateRange = _filterDateRange;
     DateTime? tempStartDate = _filterStartDate;
     DateTime? tempEndDate = _filterEndDate;
+    String? tempCategoryId = _filterCategoryId;
     final minController = TextEditingController(
       text: _filterMinAmount?.toString() ?? '',
     );
     final maxController = TextEditingController(
       text: _filterMaxAmount?.toString() ?? '',
     );
+    // Charger les catégories pour le filtre (backend n'applique categoryId que pour les dépenses)
+    final provider = context.read<BudgetProvider>();
+    provider.loadCategoriesIfNeeded();
 
     showModalBottomSheet(
       context: context,
@@ -219,6 +229,54 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                   ],
                 ),
                 const SizedBox(height: 20),
+
+                // Catégorie (pertinent pour "Tous" ou "Dépenses" uniquement)
+                if (tempType == null || tempType == 'expense') ...[
+                  Text(
+                    'Catégorie',
+                    style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                      color: Colors.grey[700],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Consumer<BudgetProvider>(
+                    builder: (context, prov, _) {
+                      final categories = prov.categories;
+                      return DropdownButtonFormField<String?>(
+                        value: tempCategoryId,
+                        decoration: InputDecoration(
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        hint: Text(
+                          'Toutes',
+                          style: GoogleFonts.poppins(color: Colors.grey[600]),
+                        ),
+                        items: [
+                          DropdownMenuItem<String?>(
+                            value: null,
+                            child: Text(
+                              'Toutes',
+                              style: GoogleFonts.poppins(),
+                            ),
+                          ),
+                          ...categories.map((c) => DropdownMenuItem<String?>(
+                                value: c.id,
+                                child: Text(
+                                  c.name,
+                                  style: GoogleFonts.poppins(),
+                                ),
+                              )),
+                        ],
+                        onChanged: (v) => setModalState(() => tempCategoryId = v),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 20),
+                ],
 
                 // Période
                 Text(
@@ -349,6 +407,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                             _filterEndDate = null;
                             _filterMinAmount = null;
                             _filterMaxAmount = null;
+                            _filterCategoryId = null;
                             _hasActiveFilters = false;
                           });
                           Navigator.pop(context);
@@ -385,10 +444,12 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                             _filterMaxAmount = maxController.text.isNotEmpty
                                 ? double.tryParse(maxController.text)
                                 : null;
+                            _filterCategoryId = tempCategoryId;
                             _hasActiveFilters = tempType != null ||
                                 tempDateRange != null ||
                                 _filterMinAmount != null ||
-                                _filterMaxAmount != null;
+                                _filterMaxAmount != null ||
+                                tempCategoryId != null;
                           });
                           Navigator.pop(context);
                           _applyFilters();
