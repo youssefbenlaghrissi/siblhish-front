@@ -225,12 +225,10 @@ class PushNotificationService {
     debugPrint('📬 Données de la notification: ${message.data}');
   }
 
-  /// Définir l'ID utilisateur actuel (appelé après la connexion)
+  /// Définir l'ID utilisateur actuel (appelé avant initialize() pour que le token FCM soit envoyé au backend)
   static void setUserId(String userId, {Function(String)? onNotificationsEnabledChanged}) {
     _currentUserId = userId;
     _onNotificationsEnabledChanged = onNotificationsEnabledChanged;
-    // Si on a déjà un token, l'envoyer maintenant
-    _getFCMToken();
   }
 
   /// S'abonner à un topic (pour recevoir des notifications groupées)

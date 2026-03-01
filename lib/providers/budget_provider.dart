@@ -166,23 +166,19 @@ class BudgetProvider extends ChangeNotifier {
       // OPTIMISATION : Un seul notifyListeners() à la fin
       notifyListeners();
       
-      // Initialiser le service de notifications push avec l'ID utilisateur et notificationsEnabled
-      // Pour les utilisateurs existants, utiliser le statut de la DB (ne pas redemander les permissions)
-      // Pour les nouveaux utilisateurs, les permissions ont déjà été demandées au login
-      await PushNotificationService.initialize(
-        notificationsEnabledFromDB: _currentUser?.notificationsEnabled,
-        isNewUser: false, // Toujours false ici car l'utilisateur existe déjà dans la DB
-      );
+      // Définir l'userId avant initialize() pour que le token FCM puisse être envoyé au backend
       PushNotificationService.setUserId(
         userId,
         onNotificationsEnabledChanged: (enabledStr) async {
-          // Callback pour mettre à jour notificationsEnabled dans le provider
-          // enabledStr est "true" ou "false" (string)
           final enabled = enabledStr.toLowerCase() == 'true';
           if (_currentUser != null && _currentUser!.notificationsEnabled != enabled) {
             await updateNotificationsEnabled(enabled);
           }
         },
+      );
+      await PushNotificationService.initialize(
+        notificationsEnabledFromDB: _currentUser?.notificationsEnabled,
+        isNewUser: false,
       );
       
       // Charger les données de l'accueil en arrière-plan (une seule fois)
