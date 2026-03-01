@@ -32,8 +32,8 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
   bool _isLoadingCharts = false;
   bool _isUpdatingCards = false; // État pour gérer le spinner lors de la mise à jour des cartes
   List<Map<String, dynamic>> _cardFavorites = [];
-  String _selectedPeriod = 'monthly'; // Période par défaut : mensuel
-  DateTime _selectedDate = DateTime.now(); // Date sélectionnée pour la navigation
+  static const String _period = 'monthly'; // Statistiques par mois uniquement
+  DateTime _selectedDate = DateTime.now(); // Mois sélectionné pour les statistiques
 
   @override
   void initState() {
@@ -121,8 +121,8 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     setState(() {}); // Mettre à jour l'UI pour afficher les skeletons
     
     try {
-      // Calculer startDate et endDate selon la période et la date sélectionnée
-      final dateRange = _calculateDateRange(_selectedPeriod, _selectedDate);
+      // Calculer startDate et endDate pour le mois sélectionné
+      final dateRange = _calculateDateRange(_selectedDate);
       final startDate = dateRange['startDate']!;
       final endDate = dateRange['endDate']!;
       
@@ -142,123 +142,164 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     }
   }
 
-  Future<void> _onPeriodChanged(String period, BudgetProvider provider) async {
-    if (_selectedPeriod == period) return;
-    
-    setState(() {
-      _selectedPeriod = period;
-      // Réinitialiser la date à aujourd'hui lors du changement de période
-      _selectedDate = DateTime.now();
-    });
-    
-    // Recharger tous les graphiques sélectionnés avec la nouvelle période
-    await _loadChartsDataIfNeeded(provider);
+  // Calculer startDate et endDate pour le mois sélectionné
+  Map<String, DateTime> _calculateDateRange(DateTime selectedDate) {
+    final startDate = DateTime(selectedDate.year, selectedDate.month, 1);
+    final endDate = DateTime(selectedDate.year, selectedDate.month + 1, 0, 23, 59, 59);
+    return {'startDate': startDate, 'endDate': endDate};
   }
 
-  // Calculer startDate et endDate selon la période et la date sélectionnée
-  Map<String, DateTime> _calculateDateRange(String period, DateTime selectedDate) {
-    DateTime startDate;
-    DateTime endDate;
+  /// Carte solde identique à l'écran d'accueil (solde + revenus + dépenses).
+  Widget _buildBalanceCard(BudgetProvider provider) {
+    final formatter = NumberFormat.currency(symbol: 'MAD ', decimalDigits: 0);
+    final balance = provider.balance;
+    final totalIncome = provider.totalIncome;
+    final totalExpenses = provider.totalExpenses;
+    final balanceColor = balance >= 0 ? AppTheme.incomeColor : AppTheme.expenseColor;
 
-    switch (period) {
-      case 'daily':
-        // Pour daily : afficher uniquement le jour sélectionné
-        startDate = DateTime(selectedDate.year, selectedDate.month, selectedDate.day);
-        endDate = DateTime(selectedDate.year, selectedDate.month, selectedDate.day, 23, 59, 59);
-        break;
-      
-      case 'weekly':
-        // Pour weekly : afficher la semaine de la date sélectionnée (lundi à dimanche)
-        final startOfWeek = selectedDate.subtract(Duration(days: selectedDate.weekday - 1));
-        startDate = DateTime(startOfWeek.year, startOfWeek.month, startOfWeek.day);
-        endDate = startDate.add(const Duration(days: 6));
-        endDate = DateTime(endDate.year, endDate.month, endDate.day, 23, 59, 59);
-        break;
-      
-      case 'monthly':
-        // Pour monthly : afficher le mois de la date sélectionnée (1er au dernier jour)
-        startDate = DateTime(selectedDate.year, selectedDate.month, 1);
-        endDate = DateTime(selectedDate.year, selectedDate.month + 1, 0, 23, 59, 59);
-        break;
-      
-      default:
-        // Par défaut : mois actuel
-        startDate = DateTime(selectedDate.year, selectedDate.month, 1);
-        endDate = DateTime(selectedDate.year, selectedDate.month + 1, 0, 23, 59, 59);
-    }
-
-    return {
-      'startDate': startDate,
-      'endDate': endDate,
-    };
-  }
-
-  void _showPeriodMenu(BuildContext context) {
-    final periods = [
-      {'value': 'daily', 'label': 'Quotidien'},
-      {'value': 'weekly', 'label': 'Hebdomadaire'},
-      {'value': 'monthly', 'label': 'Mensuel'},
-    ];
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              margin: const EdgeInsets.only(top: 12, bottom: 8),
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-              child: Text(
-                'Sélectionner une période',
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: balance >= 0
+                ? AppTheme.incomeColor.withOpacity(0.2)
+                : AppTheme.expenseColor.withOpacity(0.2),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: balanceColor, width: 2.5),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.account_balance_wallet_rounded, color: balanceColor, size: 24),
+              const SizedBox(width: 8),
+              Text(
+                'Solde',
                 style: GoogleFonts.poppins(
                   fontSize: 18,
+                  color: balanceColor,
                   fontWeight: FontWeight.bold,
-                  color: AppTheme.textPrimary,
+                ),
+              ),
+              const Spacer(),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  formatter.format(balance),
+                  style: GoogleFonts.poppins(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: balanceColor,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppTheme.incomeColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppTheme.incomeColor.withOpacity(0.3)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.trending_up_rounded, color: AppTheme.incomeColor, size: 24),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: AppTheme.incomeColor.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              'Revenus totaux',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.poppins(
+                                fontSize: 11,
+                                color: AppTheme.incomeColor,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      formatter.format(totalIncome),
+                      style: GoogleFonts.poppins(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.incomeColor,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
-            const Divider(),
-            ...periods.map((period) {
-              final isSelected = _selectedPeriod == period['value'];
-              return ListTile(
-                leading: Icon(
-                  isSelected ? Icons.check_circle_rounded : Icons.circle_outlined,
-                  color: isSelected ? AppTheme.primaryColor : Colors.grey[400],
+            const SizedBox(width: 12),
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppTheme.expenseColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppTheme.expenseColor.withOpacity(0.3)),
                 ),
-                title: Text(
-                  period['label']!,
-                  style: GoogleFonts.poppins(
-                    fontSize: 16,
-                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                    color: isSelected ? AppTheme.primaryColor : AppTheme.textPrimary,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.trending_down_rounded, color: AppTheme.expenseColor, size: 24),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: AppTheme.expenseColor.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              'Dépenses totales',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.poppins(
+                                fontSize: 11,
+                                color: AppTheme.expenseColor,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      formatter.format(totalExpenses),
+                      style: GoogleFonts.poppins(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.expenseColor,
+                      ),
+                    ),
+                  ],
                 ),
-                onTap: () {
-                  Navigator.pop(context);
-                  if (period['value'] != _selectedPeriod) {
-                    _onPeriodChanged(period['value']!, context.read<BudgetProvider>());
-                  }
-                },
-              );
-            }).toList(),
-            const SizedBox(height: 20),
+              ),
+            ),
           ],
         ),
-      ),
+      ],
     );
   }
 
@@ -386,7 +427,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                       expenses: provider.expenses,
                       incomes: provider.incomes,
                       selectedDate: _selectedDate,
-                      period: _selectedPeriod,
+                      period: _period,
                     ),
         );
 
@@ -408,7 +449,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                 )
               : PieChartWidget(
                   categoryData: categoryData,
-                  period: _selectedPeriod,
+                  period: _period,
                 ),
         );
 
@@ -425,41 +466,19 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
           );
           
           // Calculer startDate et endDate pour déterminer le nombre réel de périodes
-          final dateRange = _calculateDateRange(_selectedPeriod, _selectedDate);
+          final dateRange = _calculateDateRange(_selectedDate);
           final startDate = dateRange['startDate']!;
           final endDate = dateRange['endDate']!;
           
-          // Calculer le nombre de périodes selon la période sélectionnée
-          switch (_selectedPeriod) {
-            case 'daily':
-              // Pour daily : moyenne par jour (1 jour dans la période)
-              numberOfPeriods = 1;
-              averageExpense = totalExpenses;
-              break;
-              
-            case 'weekly':
-              // Pour weekly : moyenne par jour dans la semaine (7 jours)
-              numberOfPeriods = endDate.difference(startDate).inDays + 1;
-              averageExpense = numberOfPeriods > 0 ? totalExpenses / numberOfPeriods : 0.0;
-              break;
-              
-            case 'monthly':
-              // Pour monthly : moyenne par jour dans le mois
-              numberOfPeriods = endDate.difference(startDate).inDays + 1;
-              averageExpense = numberOfPeriods > 0 ? totalExpenses / numberOfPeriods : 0.0;
-              break;
-              
-            default:
-              // Par défaut : utiliser le nombre réel de périodes avec données
-              numberOfPeriods = provider.monthlySummary.length;
-              averageExpense = numberOfPeriods > 0 ? totalExpenses / numberOfPeriods : 0.0;
-          }
+          // Moyenne par jour dans le mois
+          numberOfPeriods = endDate.difference(startDate).inDays + 1;
+          averageExpense = numberOfPeriods > 0 ? totalExpenses / numberOfPeriods : 0.0;
         }
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
           child: AverageExpenseCardWidget(
             averageExpense: averageExpense,
-            period: _selectedPeriod,
+            period: _period,
             numberOfPeriods: numberOfPeriods,
             selectedDate: _selectedDate,
           ),
@@ -478,41 +497,19 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
           );
           
           // Calculer startDate et endDate pour déterminer le nombre réel de périodes
-          final dateRange = _calculateDateRange(_selectedPeriod, _selectedDate);
+          final dateRange = _calculateDateRange(_selectedDate);
           final startDate = dateRange['startDate']!;
           final endDate = dateRange['endDate']!;
           
-          // Calculer le nombre de périodes selon la période sélectionnée
-          switch (_selectedPeriod) {
-            case 'daily':
-              // Pour daily : moyenne par jour (1 jour dans la période)
-              numberOfPeriods = 1;
-              averageIncome = totalIncome;
-              break;
-              
-            case 'weekly':
-              // Pour weekly : moyenne par jour dans la semaine (7 jours)
-              numberOfPeriods = endDate.difference(startDate).inDays + 1;
-              averageIncome = numberOfPeriods > 0 ? totalIncome / numberOfPeriods : 0.0;
-              break;
-              
-            case 'monthly':
-              // Pour monthly : moyenne par jour dans le mois
-              numberOfPeriods = endDate.difference(startDate).inDays + 1;
-              averageIncome = numberOfPeriods > 0 ? totalIncome / numberOfPeriods : 0.0;
-              break;
-              
-            default:
-              // Par défaut : utiliser le nombre réel de périodes avec données
-              numberOfPeriods = provider.monthlySummary.length;
-              averageIncome = numberOfPeriods > 0 ? totalIncome / numberOfPeriods : 0.0;
-          }
+          // Moyenne par jour dans le mois
+          numberOfPeriods = endDate.difference(startDate).inDays + 1;
+          averageIncome = numberOfPeriods > 0 ? totalIncome / numberOfPeriods : 0.0;
         }
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
           child: AverageIncomeCardWidget(
             averageIncome: averageIncome,
-            period: _selectedPeriod,
+            period: _period,
             numberOfPeriods: numberOfPeriods,
             selectedDate: _selectedDate,
           ),
@@ -520,7 +517,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
 
       case StatisticsCardType.transactionCountCard:
         // Calculer startDate et endDate pour filtrer les transactions
-        final dateRange = _calculateDateRange(_selectedPeriod, _selectedDate);
+        final dateRange = _calculateDateRange(_selectedDate);
         final startDate = dateRange['startDate']!;
         final endDate = dateRange['endDate']!;
         
@@ -549,13 +546,13 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
           child: TransactionCountCardWidget(
             incomeCount: incomeCount,
             expenseCount: expenseCount,
-            period: _selectedPeriod,
+            period: _period,
             selectedDate: _selectedDate,
           ),
         );
 
       case StatisticsCardType.topBudgetCategoriesCard:
-        final dateRange = _calculateDateRange(_selectedPeriod, _selectedDate);
+        final dateRange = _calculateDateRange(_selectedDate);
         final startDate = dateRange['startDate']!;
         final endDate = dateRange['endDate']!;
         return Padding(
@@ -567,7 +564,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
         );
 
       case StatisticsCardType.budgetDistributionPieChart:
-        final dateRange = _calculateDateRange(_selectedPeriod, _selectedDate);
+        final dateRange = _calculateDateRange(_selectedDate);
         final startDate = dateRange['startDate']!;
         final endDate = dateRange['endDate']!;
         return Padding(
@@ -745,38 +742,27 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                   child: SizedBox(height: 16),
                 ),
 
-                // Filtre de période avec icône de filtre fixe à droite
+                // Carte solde (même que l'accueil)
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                    child: Row(
-                      children: [
-                        _PeriodFilterDropdown(
-                          selectedPeriod: _selectedPeriod,
-                          selectedDate: _selectedDate,
-                          onPeriodChanged: (period) => _onPeriodChanged(period, provider),
-                          onDateChanged: (date) {
-                            setState(() {
-                              _selectedDate = date;
-                            });
-                            _loadChartsDataIfNeeded(provider);
-                          },
-                        ),
-                        const Spacer(),
-                        // Icône de filtre fixe à droite
-                        Builder(
-                          builder: (context) => IconButton(
-                            onPressed: () => _showPeriodMenu(context),
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
-                            icon: Icon(
-                              Icons.filter_list_rounded,
-                              color: AppTheme.primaryColor,
-                              size: 24,
-                            ),
-                          ),
-                        ),
-                      ],
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: _buildBalanceCard(provider),
+                  ),
+                ),
+
+                // Sélecteur de mois (largeur minimale = contenu)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: _MonthSelector(
+                        selectedDate: _selectedDate,
+                        onDateChanged: (date) {
+                          setState(() => _selectedDate = date);
+                          _loadChartsDataIfNeeded(provider);
+                        },
+                      ),
                     ),
                   ),
                 ),
@@ -828,204 +814,49 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
   }
 }
 
-class _PeriodFilterDropdown extends StatelessWidget {
-  final String selectedPeriod;
+/// Sélecteur de mois pour les statistiques (navigation mois précédent / suivant).
+class _MonthSelector extends StatelessWidget {
   final DateTime selectedDate;
-  final Function(String) onPeriodChanged;
   final Function(DateTime) onDateChanged;
 
-  const _PeriodFilterDropdown({
-    required this.selectedPeriod,
+  const _MonthSelector({
     required this.selectedDate,
-    required this.onPeriodChanged,
     required this.onDateChanged,
   });
 
-  String _formatDate(DateTime date, String period) {
-    switch (period) {
-      case 'daily':
-        // Format: "15 décembre, 2025"
-        return DateFormat('d MMMM, yyyy', 'fr').format(date);
-      case 'weekly':
-        // Format: "29 déc. 2025 - 4 janv. 2026" (format court avec abréviations et années)
-        final startOfWeek = date.subtract(Duration(days: date.weekday - 1));
-        final endOfWeek = startOfWeek.add(const Duration(days: 6));
-        final startMonthAbbr = DateFormat('MMM', 'fr').format(startOfWeek);
-        final endMonthAbbr = DateFormat('MMM', 'fr').format(endOfWeek);
-        
-        if (startOfWeek.month == endOfWeek.month && startOfWeek.year == endOfWeek.year) {
-          // Même mois et même année : "29-4 déc. 2025"
-          return '${startOfWeek.day}-${endOfWeek.day} $startMonthAbbr ${startOfWeek.year}';
-        } else if (startOfWeek.year == endOfWeek.year) {
-          // Même année mais mois différents : "29 déc. 2025 - 4 janv. 2025"
-          return '${startOfWeek.day} $startMonthAbbr ${startOfWeek.year} - ${endOfWeek.day} $endMonthAbbr ${endOfWeek.year}';
-        } else {
-          // Années différentes : "29 déc. 2025 - 4 janv. 2026"
-          return '${startOfWeek.day} $startMonthAbbr ${startOfWeek.year} - ${endOfWeek.day} $endMonthAbbr ${endOfWeek.year}';
-        }
-      case 'monthly':
-        // Format: "décembre, 2025"
-        return DateFormat('MMMM, yyyy', 'fr').format(date);
-      default:
-        return DateFormat('MMMM, yyyy', 'fr').format(date);
-    }
-  }
-
-  void _previousPeriod() {
-    DateTime newDate;
-    switch (selectedPeriod) {
-      case 'daily':
-        newDate = selectedDate.subtract(const Duration(days: 1));
-        break;
-      case 'weekly':
-        newDate = selectedDate.subtract(const Duration(days: 7));
-        break;
-      case 'monthly':
-        newDate = DateTime(selectedDate.year, selectedDate.month - 1, selectedDate.day);
-        break;
-      default:
-        newDate = DateTime(selectedDate.year, selectedDate.month - 1, selectedDate.day);
-    }
-    onDateChanged(newDate);
-  }
-
-  void _nextPeriod() {
-    DateTime newDate;
-    switch (selectedPeriod) {
-      case 'daily':
-        newDate = selectedDate.add(const Duration(days: 1));
-        break;
-      case 'weekly':
-        newDate = selectedDate.add(const Duration(days: 7));
-        break;
-      case 'monthly':
-        newDate = DateTime(selectedDate.year, selectedDate.month + 1, selectedDate.day);
-        break;
-      default:
-        newDate = DateTime(selectedDate.year, selectedDate.month + 1, selectedDate.day);
-    }
-    onDateChanged(newDate);
-  }
-
-  void _showPeriodMenu(BuildContext context) {
-    final periods = [
-      {'value': 'daily', 'label': 'Quotidien'},
-      {'value': 'weekly', 'label': 'Hebdomadaire'},
-      {'value': 'monthly', 'label': 'Mensuel'},
-    ];
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              margin: const EdgeInsets.only(top: 12, bottom: 8),
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-              child: Text(
-                'Sélectionner une période',
-                style: GoogleFonts.poppins(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.textPrimary,
-                ),
-              ),
-            ),
-            const Divider(),
-            ...periods.map((period) {
-              final isSelected = selectedPeriod == period['value'];
-              return ListTile(
-                leading: Icon(
-                  isSelected ? Icons.check_circle_rounded : Icons.circle_outlined,
-                  color: isSelected ? AppTheme.primaryColor : Colors.grey[400],
-                ),
-                title: Text(
-                  period['label']!,
-                  style: GoogleFonts.poppins(
-                    fontSize: 16,
-                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                    color: isSelected ? AppTheme.primaryColor : AppTheme.textPrimary,
-                  ),
-                ),
-                onTap: () {
-                  Navigator.pop(context);
-                  if (period['value'] != selectedPeriod) {
-                    onPeriodChanged(period['value']!);
-                  }
-                },
-              );
-            }).toList(),
-            const SizedBox(height: 20),
-          ],
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
+    final monthLabel = DateFormat('MMMM yyyy', 'fr').format(selectedDate);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
         color: Colors.grey[100],
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: Colors.grey[300]!,
-          width: 1,
-        ),
+        border: Border.all(color: Colors.grey[300]!, width: 1),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Chevron gauche
           InkWell(
-            onTap: _previousPeriod,
+            onTap: () => onDateChanged(DateTime(selectedDate.year, selectedDate.month - 1, selectedDate.day)),
             borderRadius: BorderRadius.circular(4),
             child: Padding(
               padding: const EdgeInsets.all(2),
-              child: Icon(
-                Icons.chevron_left_rounded,
-                color: AppTheme.primaryColor,
-                size: 20,
-              ),
+              child: Icon(Icons.chevron_left_rounded, color: AppTheme.primaryColor, size: 20),
             ),
           ),
           const SizedBox(width: 6),
-          // Texte de la date formatée selon la période
           Text(
-            _formatDate(selectedDate, selectedPeriod),
-            style: GoogleFonts.poppins(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: Colors.black87,
-            ),
+            monthLabel,
+            style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.black87),
           ),
           const SizedBox(width: 6),
-          // Chevron droite
           InkWell(
-            onTap: _nextPeriod,
+            onTap: () => onDateChanged(DateTime(selectedDate.year, selectedDate.month + 1, selectedDate.day)),
             borderRadius: BorderRadius.circular(4),
             child: Padding(
               padding: const EdgeInsets.all(2),
-              child: Icon(
-                Icons.chevron_right_rounded,
-                color: AppTheme.primaryColor,
-                size: 20,
-              ),
+              child: Icon(Icons.chevron_right_rounded, color: AppTheme.primaryColor, size: 20),
             ),
           ),
         ],

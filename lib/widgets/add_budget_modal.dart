@@ -35,56 +35,10 @@ class _AddBudgetModalState extends State<AddBudgetModal> {
     _endDate = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
   }
 
-  void _updateRecurringDates() {
-    final now = DateTime.now();
-    _startDate = DateTime(now.year, now.month, 1);
-    _endDate = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
-  }
-
   @override
   void dispose() {
     _amountController.dispose();
     super.dispose();
-  }
-
-  Future<void> _selectStartDate() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _startDate ?? DateTime.now(),
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2100),
-    );
-    if (picked != null) {
-      setState(() {
-        _startDate = DateTime(picked.year, picked.month, picked.day);
-        // Si la date de fin est avant la nouvelle date de début, mettre à jour la date de fin
-        if (_endDate != null && _endDate!.isBefore(_startDate!)) {
-          _endDate = DateTime(_startDate!.year, _startDate!.month + 1, 0, 23, 59, 59);
-        }
-      });
-      // Revalider après la sélection si l'utilisateur a déjà tenté de soumettre
-      if (_hasAttemptedSubmit) {
-        _formKey.currentState?.validate();
-      }
-    }
-  }
-
-  Future<void> _selectEndDate() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _endDate ?? (_startDate ?? DateTime.now()).add(const Duration(days: 30)),
-      firstDate: _startDate ?? DateTime(2020),
-      lastDate: DateTime(2100),
-    );
-    if (picked != null) {
-      setState(() {
-        _endDate = DateTime(picked.year, picked.month, picked.day, 23, 59, 59);
-      });
-      // Revalider après la sélection si l'utilisateur a déjà tenté de soumettre
-      if (_hasAttemptedSubmit) {
-        _formKey.currentState?.validate();
-      }
-    }
   }
 
   String _formatDate(DateTime? date) {
@@ -137,15 +91,9 @@ class _AddBudgetModalState extends State<AddBudgetModal> {
         throw Exception('Utilisateur non connecté');
       }
 
-      // Si récurrent, s'assurer que les dates sont du 1er au dernier jour du mois
-      DateTime finalStartDate = _startDate!;
-      DateTime finalEndDate = _endDate!;
-      
-      if (_isRecurring) {
-        final now = DateTime.now();
-        finalStartDate = DateTime(now.year, now.month, 1);
-        finalEndDate = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
-      }
+      // Conserver les dates choisies par l'utilisateur (ne pas les remplacer par le mois courant)
+      final DateTime finalStartDate = _startDate!;
+      final DateTime finalEndDate = _endDate!;
 
       final budget = Budget(
         id: '', // Sera généré par le backend
@@ -242,21 +190,90 @@ class _AddBudgetModalState extends State<AddBudgetModal> {
                     Consumer<BudgetProvider>(
                       builder: (context, provider, child) {
                         final categories = provider.categories;
+                        final budgets = provider.budgets;
+                        // Catégories qui ont déjà un budget sur la période sélectionnée
+                        final categoryIdsWithBudget = <String>{};
+                        if (_startDate != null && _endDate != null) {
+                          for (final b in budgets) {
+                            if (b.categoryId == null) continue;
+                            if (b.startDate == null || b.endDate == null) continue;
+                            final overlaps = !b.startDate!.isAfter(_endDate!) && !b.endDate!.isBefore(_startDate!);
+                            if (overlaps) categoryIdsWithBudget.add(b.categoryId!);
+                          }
+                        }
+                        // Ne pas garder une catégorie déjà pourvue d'un budget comme sélectionnée
+                        final effectiveValue = _selectedCategory != null && categoryIdsWithBudget.contains(_selectedCategory!.id)
+                            ? null
+                            : _selectedCategory;
+                        if (effectiveValue == null && _selectedCategory != null) {
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            if (mounted) setState(() => _selectedCategory = null);
+                          });
+                        }
                         return DropdownButtonFormField<models.Category>(
                           decoration: const InputDecoration(
                             labelText: 'Catégorie *',
                             prefixIcon: Icon(Icons.category_rounded),
                           ),
-                          value: _selectedCategory,
+                          value: effectiveValue,
                           items: categories.map((category) {
+                            final hasBudget = categoryIdsWithBudget.contains(category.id);
                             return DropdownMenuItem<models.Category>(
                               value: category,
-                              child: Row(
-                                children: [
-                                  Text(category.icon ?? '📦'),
-                                  const SizedBox(width: 8),
-                                  Text(category.name),
-                                ],
+                              enabled: !hasBudget,
+                              child: LayoutBuilder(
+                                builder: (context, constraints) {
+                                  final maxW = constraints.maxWidth;
+                                  final width = maxW.isFinite && maxW > 0
+                                      ? maxW
+                                      : 260.0;
+                                  final content = ClipRect(
+                                    child: SizedBox(
+                                      width: width,
+                                      child: Row(
+                                        children: [
+                                          DefaultTextStyle(
+                                            style: DefaultTextStyle.of(context).style.copyWith(
+                                              color: hasBudget ? Colors.grey : null,
+                                            ),
+                                            child: Text(category.icon ?? '📦'),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: DefaultTextStyle(
+                                              style: DefaultTextStyle.of(context).style.copyWith(
+                                                color: hasBudget ? Colors.grey : null,
+                                              ),
+                                              child: Text(
+                                                category.name,
+                                                overflow: TextOverflow.ellipsis,
+                                                maxLines: 1,
+                                              ),
+                                            ),
+                                          ),
+                                          if (hasBudget) ...[
+                                            const SizedBox(width: 8),
+                                            Flexible(
+                                              child: Text(
+                                                'Budget déjà créé',
+                                                style: GoogleFonts.poppins(
+                                                  fontSize: 12,
+                                                  color: Colors.grey,
+                                                  fontStyle: FontStyle.italic,
+                                                ),
+                                                overflow: TextOverflow.ellipsis,
+                                                maxLines: 1,
+                                              ),
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                  return hasBudget
+                                      ? Opacity(opacity: 0.7, child: content)
+                                      : content;
+                                },
                               ),
                             );
                           }).toList(),
@@ -264,7 +281,6 @@ class _AddBudgetModalState extends State<AddBudgetModal> {
                             setState(() {
                               _selectedCategory = value;
                             });
-                            // Revalider après la sélection si l'utilisateur a déjà tenté de soumettre
                             if (_hasAttemptedSubmit) {
                               _formKey.currentState?.validate();
                             }
@@ -280,12 +296,12 @@ class _AddBudgetModalState extends State<AddBudgetModal> {
                     ),
                     const SizedBox(height: 20),
 
-                    // Start Date
-                    InkWell(
-                      onTap: _isSubmitting ? null : _selectStartDate,
+                    // Date de début (désactivé : mois courant)
+                    Opacity(
+                      opacity: 0.7,
                       child: InputDecorator(
                         decoration: const InputDecoration(
-                          labelText: 'Date de début *',
+                          labelText: 'Date de début',
                           prefixIcon: Icon(Icons.calendar_today_rounded),
                           suffixIcon: Icon(Icons.arrow_drop_down),
                         ),
@@ -293,19 +309,19 @@ class _AddBudgetModalState extends State<AddBudgetModal> {
                           _formatDate(_startDate),
                           style: GoogleFonts.poppins(
                             fontSize: 16,
-                            color: _startDate == null ? Colors.grey : Colors.black,
+                            color: Colors.grey,
                           ),
                         ),
                       ),
                     ),
                     const SizedBox(height: 20),
 
-                    // End Date
-                    InkWell(
-                      onTap: _isSubmitting ? null : _selectEndDate,
+                    // Date de fin (désactivé : mois courant)
+                    Opacity(
+                      opacity: 0.7,
                       child: InputDecorator(
                         decoration: const InputDecoration(
-                          labelText: 'Date de fin *',
+                          labelText: 'Date de fin',
                           prefixIcon: Icon(Icons.event_rounded),
                           suffixIcon: Icon(Icons.arrow_drop_down),
                         ),
@@ -313,7 +329,7 @@ class _AddBudgetModalState extends State<AddBudgetModal> {
                           _formatDate(_endDate),
                           style: GoogleFonts.poppins(
                             fontSize: 16,
-                            color: _endDate == null ? Colors.grey : Colors.black,
+                            color: Colors.grey,
                           ),
                         ),
                       ),
@@ -357,9 +373,7 @@ class _AddBudgetModalState extends State<AddBudgetModal> {
                           : (value) {
                               setState(() {
                                 _isRecurring = value ?? false;
-                                if (_isRecurring) {
-                                  _updateRecurringDates();
-                                }
+                                // Ne pas modifier les dates : garder celles choisies par l'utilisateur
                               });
                             },
                     ),

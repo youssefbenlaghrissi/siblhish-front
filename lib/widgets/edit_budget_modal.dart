@@ -37,12 +37,6 @@ class _EditBudgetModalState extends State<EditBudgetModal> {
     _isRecurring = widget.budget.isRecurring;
   }
 
-  void _updateRecurringDates() {
-    final now = DateTime.now();
-    _startDate = DateTime(now.year, now.month, 1);
-    _endDate = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
-  }
-
   @override
   void dispose() {
     _amountController.dispose();
@@ -84,6 +78,14 @@ class _EditBudgetModalState extends State<EditBudgetModal> {
   String _formatDate(DateTime? date) {
     if (date == null) return 'Non sélectionnée';
     return DateFormatter.formatDate(date);
+  }
+
+  /// True si la période du budget est déjà passée (date de fin avant aujourd'hui).
+  bool get _isPastBudget {
+    final end = widget.budget.endDate;
+    if (end == null) return false;
+    final today = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+    return end.isBefore(today);
   }
 
   Future<void> _deleteBudget() async {
@@ -194,15 +196,9 @@ class _EditBudgetModalState extends State<EditBudgetModal> {
 
     try {
       final provider = context.read<BudgetProvider>();
-      // Si récurrent, s'assurer que les dates sont du 1er au dernier jour du mois
-      DateTime? finalStartDate = _startDate;
-      DateTime? finalEndDate = _endDate;
-      
-      if (_isRecurring) {
-        final now = DateTime.now();
-        finalStartDate = DateTime(now.year, now.month, 1);
-        finalEndDate = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
-      }
+      // Conserver les dates du formulaire (ne pas les remplacer par le mois courant)
+      final DateTime? finalStartDate = _startDate;
+      final DateTime? finalEndDate = _endDate;
 
       final updatedBudget = Budget(
         id: widget.budget.id,
@@ -296,6 +292,35 @@ class _EditBudgetModalState extends State<EditBudgetModal> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    // Message période passée
+                    if (_isPastBudget) ...[
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        margin: const EdgeInsets.only(bottom: 16),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.orange.shade200),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.info_outline_rounded, color: Colors.orange.shade700, size: 22),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                'Ce budget concerne une période passée.',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 14,
+                                  color: Colors.orange.shade900,
+                                  height: 1.3,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                     // Category (disabled)
                     Consumer<BudgetProvider>(
                       builder: (context, provider, child) {
@@ -437,10 +462,7 @@ class _EditBudgetModalState extends State<EditBudgetModal> {
                       onChanged: _isSubmitting ? null : (value) {
                         setState(() {
                           _isRecurring = value ?? false;
-                          // Si on active le récurrent, mettre à jour les dates automatiquement
-                          if (_isRecurring) {
-                            _updateRecurringDates();
-                          }
+                          // Ne pas modifier les dates à l'édition : garder les dates du budget
                         });
                       },
                     ),

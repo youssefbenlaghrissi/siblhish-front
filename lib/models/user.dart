@@ -6,7 +6,6 @@ class User {
   final String email;
   final String password;
   final String language;
-  final double? monthlySalary;
   final bool? notificationsEnabled;
 
   User({
@@ -16,7 +15,6 @@ class User {
     required this.email,
     required this.password,
     this.language = 'fr',
-    this.monthlySalary,
     this.notificationsEnabled = true,
   });
 
@@ -29,7 +27,6 @@ class User {
         'email': email,
         'password': password,
         'language': language,
-        'monthlySalary': monthlySalary,
         'notificationsEnabled': notificationsEnabled,
       };
 
@@ -38,9 +35,8 @@ class User {
         firstName: json['firstName'],
         lastName: json['lastName'],
         email: json['email'],
-        password: json['password'] ?? '', // Pas retourné dans UserProfileDto
+        password: json['password'] ?? '',
         language: json['language'] ?? 'fr',
-        monthlySalary: (json['monthlySalary'] as num?)?.toDouble(),
         notificationsEnabled: json['notificationsEnabled'] ?? true,
       );
 }
