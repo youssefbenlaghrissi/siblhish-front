@@ -1507,26 +1507,4 @@ class BudgetProvider extends ChangeNotifier {
       rethrow;
     }
   }
-
-  // Mettre à jour uniquement la langue
-  Future<void> updateLanguage(String language) async {
-    if (_currentUser == null) return;
-    try {
-      debugPrint('🌐 Mise à jour language: $language');
-      debugPrint('📦 Body API PATCH /users/${_currentUser!.id}/preferences:');
-      debugPrint('   language: $language');
-      
-      // Utiliser le nouvel endpoint pour mettre à jour uniquement la langue
-      final updatedUser = await UserService.updatePreferences(
-        _currentUser!.id,
-        language: language,
-      );
-      _currentUser = updatedUser;
-      notifyListeners();
-    } catch (e) {
-      _error = e.toString();
-      notifyListeners();
-      rethrow;
-    }
-  }
 }

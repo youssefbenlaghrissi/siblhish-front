@@ -9,7 +9,7 @@ class CalendarChartWidget extends StatelessWidget {
   final List<Expense> expenses;
   final List<Income> incomes;
   final DateTime selectedDate;
-  final String period; // daily, weekly, monthly
+  final String period; // "monthly" uniquement
 
   const CalendarChartWidget({
     super.key,
@@ -79,10 +79,10 @@ class CalendarChartWidget extends StatelessWidget {
           ),
           const SizedBox(height: 20),
           
-          // En-têtes des jours de la semaine (en hebdo : Lun→Dim pour correspondre à la plage 23 fév - 1 mars)
+          // En-têtes des jours de la semaine (Dim → Sam pour le calendrier mensuel)
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: (period == 'weekly' ? ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'] : ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'])
+            children: ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam']
                 .map((day) => SizedBox(
                       width: 45,
                       child: Center(
@@ -101,12 +101,8 @@ class CalendarChartWidget extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           
-          // Grille du calendrier selon la période
-          period == 'weekly'
-              ? _buildWeeklyGrid(startDate, dailyExpenses, dailyIncomes)
-              : period == 'daily'
-                  ? _buildDailyGrid(selectedDate, dailyExpenses, dailyIncomes)
-                  : _buildMonthlyGrid(selectedDate, dailyExpenses, dailyIncomes),
+          // Grille du calendrier (mois sélectionné)
+          _buildMonthlyGrid(selectedDate, dailyExpenses, dailyIncomes),
           
           const SizedBox(height: 16),
           
@@ -130,82 +126,7 @@ class CalendarChartWidget extends StatelessWidget {
     );
   }
 
-  /// Construit la grille pour la période hebdomadaire (7 jours seulement)
-  Widget _buildWeeklyGrid(
-    DateTime startDate,
-    Map<DateTime, double> dailyExpenses,
-    Map<DateTime, double> dailyIncomes,
-  ) {
-    final List<Widget> weekRow = [];
-    
-    // Afficher les 7 jours de la semaine
-    for (int i = 0; i < 7; i++) {
-      final currentDate = startDate.add(Duration(days: i));
-      final dateKey = DateTime(currentDate.year, currentDate.month, currentDate.day);
-      final expense = dailyExpenses[dateKey];
-      final income = dailyIncomes[dateKey];
-      
-      weekRow.add(
-        SizedBox(
-          width: 45,
-          height: 50,
-          child: _CalendarDayCell(
-            day: currentDate.day,
-            expense: expense != null && expense > 0 ? expense : null,
-            income: income != null && income > 0 ? income : null,
-            isHighlighted: false,
-          ),
-        ),
-      );
-    }
-    
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: weekRow,
-    );
-  }
-  
-  /// Construit la grille pour la période quotidienne (semaine complète avec jour sélectionné mis en évidence)
-  Widget _buildDailyGrid(
-    DateTime selectedDate,
-    Map<DateTime, double> dailyExpenses,
-    Map<DateTime, double> dailyIncomes,
-  ) {
-    // Trouver le début de la semaine (dimanche)
-    final startOfWeek = selectedDate.subtract(Duration(days: selectedDate.weekday % 7));
-    final selectedDateKey = DateTime(selectedDate.year, selectedDate.month, selectedDate.day);
-    
-    final List<Widget> weekRow = [];
-    
-    // Afficher les 7 jours de la semaine
-    for (int i = 0; i < 7; i++) {
-      final currentDate = startOfWeek.add(Duration(days: i));
-      final dateKey = DateTime(currentDate.year, currentDate.month, currentDate.day);
-      final expense = dailyExpenses[dateKey];
-      final income = dailyIncomes[dateKey];
-      final isSelected = dateKey.isAtSameMomentAs(selectedDateKey);
-      
-      weekRow.add(
-        SizedBox(
-          width: 45,
-          height: 50,
-          child: _CalendarDayCell(
-            day: currentDate.day,
-            expense: expense != null && expense > 0 ? expense : null,
-            income: income != null && income > 0 ? income : null,
-            isHighlighted: isSelected,
-          ),
-        ),
-      );
-    }
-    
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: weekRow,
-    );
-  }
-  
-  /// Construit la grille pour les périodes mensuelles (calendrier complet du mois)
+  /// Grille du calendrier du mois sélectionné
   Widget _buildMonthlyGrid(
     DateTime selectedDate,
     Map<DateTime, double> dailyExpenses,
@@ -263,39 +184,11 @@ class CalendarChartWidget extends StatelessWidget {
     return Column(children: rows);
   }
 
-  /// Calcule la plage de dates selon la période sélectionnée
+  /// Plage de dates du mois sélectionné
   Map<String, DateTime> _calculateDateRange(String period, DateTime selectedDate) {
-    DateTime startDate;
-    DateTime endDate;
-
-    switch (period) {
-      case 'daily':
-        startDate = DateTime(selectedDate.year, selectedDate.month, selectedDate.day);
-        endDate = DateTime(selectedDate.year, selectedDate.month, selectedDate.day, 23, 59, 59);
-        break;
-      
-      case 'weekly':
-        // Même règle que l'écran Statistiques : semaine lundi → dimanche
-        final startOfWeek = selectedDate.subtract(Duration(days: selectedDate.weekday - 1));
-        startDate = DateTime(startOfWeek.year, startOfWeek.month, startOfWeek.day);
-        endDate = startDate.add(const Duration(days: 6));
-        endDate = DateTime(endDate.year, endDate.month, endDate.day, 23, 59, 59);
-        break;
-      
-      case 'monthly':
-        startDate = DateTime(selectedDate.year, selectedDate.month, 1);
-        endDate = DateTime(selectedDate.year, selectedDate.month + 1, 0, 23, 59, 59);
-        break;
-      
-      default:
-        startDate = DateTime(selectedDate.year, selectedDate.month, 1);
-        endDate = DateTime(selectedDate.year, selectedDate.month + 1, 0, 23, 59, 59);
-    }
-
-    return {
-      'startDate': startDate,
-      'endDate': endDate,
-    };
+    final startDate = DateTime(selectedDate.year, selectedDate.month, 1);
+    final endDate = DateTime(selectedDate.year, selectedDate.month + 1, 0, 23, 59, 59);
+    return {'startDate': startDate, 'endDate': endDate};
   }
 }
 

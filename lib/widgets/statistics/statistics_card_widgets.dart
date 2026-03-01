@@ -8,33 +8,15 @@ import '../../models/expense.dart';
 import '../../providers/budget_provider.dart';
 import '../../theme/app_theme.dart';
 
-/// Fonction utilitaire centralisée pour formater la période analysée
-/// Retourne le libellé formaté de la période (ex: "Période analysée : janvier 2026")
+/// Libellé de la période analysée (statistiques par mois uniquement).
 String formatPeriodLabel(String period, DateTime selectedDate) {
-  switch (period) {
-    case 'daily':
-      return 'Période analysée : ${DateFormat('d MMMM yyyy', 'fr').format(selectedDate)}';
-    case 'weekly':
-      final startOfWeek = selectedDate.subtract(Duration(days: selectedDate.weekday - 1));
-      final endOfWeek = startOfWeek.add(const Duration(days: 6));
-      String weekRange;
-      if (startOfWeek.month == endOfWeek.month && startOfWeek.year == endOfWeek.year) {
-        weekRange = '${startOfWeek.day}-${endOfWeek.day} ${DateFormat('MMMM yyyy', 'fr').format(startOfWeek)}';
-      } else {
-        weekRange = '${DateFormat('d MMM', 'fr').format(startOfWeek)} - ${DateFormat('d MMM yyyy', 'fr').format(endOfWeek)}';
-      }
-      return 'Période analysée : $weekRange';
-    case 'monthly':
-      return 'Période analysée : ${DateFormat('MMMM yyyy', 'fr').format(selectedDate)}';
-    default:
-      return 'Période analysée : ${DateFormat('MMMM yyyy', 'fr').format(selectedDate)}';
-  }
+  return 'Période analysée : ${DateFormat('MMMM yyyy', 'fr').format(selectedDate)}';
 }
 
 /// Widget pour la carte Moyenne Dépenses
 class AverageExpenseCardWidget extends StatelessWidget {
   final double averageExpense;
-  final String period; // "daily", "weekly", "monthly"
+  final String period; // "monthly" (statistiques par mois uniquement)
   final int numberOfPeriods; // Nombre réel de périodes avec données
   final DateTime selectedDate; // Date sélectionnée pour formater la période
 
@@ -142,21 +124,7 @@ class AverageExpenseCardWidget extends StatelessWidget {
 
   void _showAverageExpenseInfoDialog(BuildContext context, double averageExpense, String period, int numberOfPeriods, DateTime selectedDate) {
     final formatter = NumberFormat.currency(symbol: 'MAD ', decimalDigits: 0);
-    String calculationExplanation = '';
-    
-    switch (period) {
-      case 'daily':
-        calculationExplanation = 'Cette valeur représente le total des dépenses pour le jour sélectionné. Comme il s\'agit d\'un seul jour, la "moyenne" correspond au total des dépenses de cette journée.';
-        break;
-      case 'weekly':
-        calculationExplanation = 'La moyenne est calculée en divisant le total des dépenses de la semaine par le nombre réel de jours dans la semaine (7 jours). Cette moyenne représente vos dépenses quotidiennes moyennes sur la semaine.';
-        break;
-      case 'monthly':
-        calculationExplanation = 'La moyenne est calculée en divisant le total des dépenses du mois par le nombre réel de jours dans le mois (28 à 31 jours selon le mois). Cette moyenne représente vos dépenses quotidiennes moyennes sur le mois.';
-        break;
-      default:
-        calculationExplanation = 'La moyenne est calculée en divisant le total des dépenses par le nombre réel de périodes dans la plage de dates sélectionnée.';
-    }
+    const calculationExplanation = 'La moyenne est calculée en divisant le total des dépenses du mois par le nombre de jours dans le mois.';
 
     showDialog(
       context: context,
@@ -278,7 +246,7 @@ class AverageExpenseCardWidget extends StatelessWidget {
 /// Widget pour la carte Moyenne Revenus
 class AverageIncomeCardWidget extends StatelessWidget {
   final double averageIncome;
-  final String period; // "daily", "weekly", "monthly"
+  final String period; // "monthly" (statistiques par mois uniquement)
   final int numberOfPeriods; // Nombre réel de périodes avec données
   final DateTime selectedDate; // Date sélectionnée pour formater la période
 
@@ -386,21 +354,7 @@ class AverageIncomeCardWidget extends StatelessWidget {
 
   void _showAverageIncomeInfoDialog(BuildContext context, double averageIncome, String period, int numberOfPeriods, DateTime selectedDate) {
     final formatter = NumberFormat.currency(symbol: 'MAD ', decimalDigits: 0);
-    String calculationExplanation = '';
-    
-    switch (period) {
-      case 'daily':
-        calculationExplanation = 'Cette valeur représente le total des revenus pour le jour sélectionné. Comme il s\'agit d\'un seul jour, la "moyenne" correspond au total des revenus de cette journée.';
-        break;
-      case 'weekly':
-        calculationExplanation = 'La moyenne est calculée en divisant le total des revenus de la semaine par le nombre réel de jours dans la semaine (7 jours). Cette moyenne représente vos revenus quotidiens moyens sur la semaine.';
-        break;
-      case 'monthly':
-        calculationExplanation = 'La moyenne est calculée en divisant le total des revenus du mois par le nombre réel de jours dans le mois (28 à 31 jours selon le mois). Cette moyenne représente vos revenus quotidiens moyens sur le mois.';
-        break;
-      default:
-        calculationExplanation = 'La moyenne est calculée en divisant le total des revenus par le nombre réel de périodes dans la plage de dates sélectionnée.';
-    }
+    const calculationExplanation = 'La moyenne est calculée en divisant le total des revenus du mois par le nombre de jours dans le mois.';
 
     showDialog(
       context: context,
