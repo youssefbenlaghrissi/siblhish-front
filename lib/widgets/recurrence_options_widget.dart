@@ -12,6 +12,8 @@ class RecurrenceOptionsWidget extends StatefulWidget {
   final List<int>? initialDaysOfWeek;
   final int? initialDayOfMonth;
   final int? initialDayOfYear;
+  /// Date de début saisie dans le formulaire (pour l'alerte "à partir du ...")
+  final DateTime? startDate;
   /// Message d'erreur affiché au-dessus de la liste des jours (ex: "Veuillez sélectionner au moins un jour")
   final String? weeklyDaysErrorText;
 
@@ -26,6 +28,7 @@ class RecurrenceOptionsWidget extends StatefulWidget {
     this.initialDaysOfWeek,
     this.initialDayOfMonth,
     this.initialDayOfYear,
+    this.startDate,
     this.weeklyDaysErrorText,
   });
 
@@ -95,25 +98,29 @@ class _RecurrenceOptionsWidgetState extends State<RecurrenceOptionsWidget> {
   String _getRecurrenceDescription() {
     if (widget.frequency == null) return '';
     
+    final startPhrase = widget.startDate != null
+        ? 'Cette transaction sera créée automatiquement à partir du ${widget.startDate!.day}/${widget.startDate!.month}/${widget.startDate!.year}, '
+        : 'Cette transaction sera créée automatiquement ';
+    
     String description = '';
     
     switch (widget.frequency) {
       case 'DAILY':
-        description = 'Cette transaction sera créée automatiquement chaque jour';
+        description = '${startPhrase}chaque jour';
         break;
       case 'WEEKLY':
         if (_selectedDaysOfWeek.isEmpty) {
-          description = 'Cette transaction sera créée automatiquement chaque semaine';
+          description = '${startPhrase}chaque semaine';
         } else {
           final days = _selectedDaysOfWeek.map((d) => _weekDays[d - 1]).join(', ');
-          description = 'Cette transaction sera créée automatiquement chaque $days';
+          description = '${startPhrase}chaque $days';
         }
         break;
       case 'MONTHLY':
-        description = 'Cette transaction sera créée automatiquement le $_dayOfMonth de chaque mois';
+        description = '${startPhrase}le $_dayOfMonth de chaque mois';
         break;
       case 'YEARLY':
-        description = 'Cette transaction sera créée automatiquement le ${_formatDayOfYear(_dayOfYear)} de chaque année';
+        description = '${startPhrase}le ${_formatDayOfYear(_dayOfYear)} de chaque année';
         break;
       default:
         return '';

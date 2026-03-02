@@ -461,6 +461,7 @@ class _EditScheduledPaymentModalState extends State<EditScheduledPaymentModal> {
                         const SizedBox(height: 20),
                         RecurrenceOptionsWidget(
                           frequency: _recurrenceFrequency,
+                          startDate: _selectedDate,
                           initialEndDate: _recurrenceEndDate,
                           initialDaysOfWeek: _recurrenceDaysOfWeek,
                           initialDayOfMonth: _recurrenceDayOfMonth,

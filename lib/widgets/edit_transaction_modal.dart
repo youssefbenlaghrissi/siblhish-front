@@ -149,7 +149,7 @@ class _EditTransactionModalState extends State<EditTransactionModal> {
       context: context,
       initialDate: _selectedDate,
       firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 365 * 2)), // Autoriser les dates futures (2 ans)
     );
     if (picked != null) {
       setState(() {
@@ -567,6 +567,7 @@ class _EditTransactionModalState extends State<EditTransactionModal> {
                         const SizedBox(height: 20),
                         RecurrenceOptionsWidget(
                           frequency: _recurrenceFrequency,
+                          startDate: _selectedDate,
                           initialEndDate: _recurrenceEndDate,
                           initialDaysOfWeek: _recurrenceDaysOfWeek,
                           initialDayOfMonth: _recurrenceDayOfMonth,

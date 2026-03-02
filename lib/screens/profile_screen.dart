@@ -1149,7 +1149,7 @@ class _DeleteAccountDialog extends StatelessWidget {
                 Text('• Toutes vos transactions', style: GoogleFonts.poppins(fontSize: 14)),
                 Text('• Tous vos budgets', style: GoogleFonts.poppins(fontSize: 14)),
                 Text('• Tous vos objectifs', style: GoogleFonts.poppins(fontSize: 14)),
-                Text('• Toutes vos catégories', style: GoogleFonts.poppins(fontSize: 14)),
+                Text('• Tous vos paiements planifiés', style: GoogleFonts.poppins(fontSize: 14)),
                 Text('• Toutes vos données personnelles', style: GoogleFonts.poppins(fontSize: 14)),
               ],
             ),
