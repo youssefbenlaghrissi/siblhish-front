@@ -409,7 +409,6 @@ class _AddTransactionModalState extends State<AddTransactionModal> {
                         labelText: 'Description (optionnel)',
                         prefixIcon: Icon(Icons.description_rounded),
                       ),
-                      maxLines: 2,
                     ),
                     const SizedBox(height: 20),
 

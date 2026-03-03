@@ -10,6 +10,7 @@ import '../theme/app_theme.dart';
 import '../providers/budget_provider.dart';
 import 'edit_transaction_modal.dart';
 import 'custom_snackbar.dart';
+import 'recurrence_options_widget.dart';
 
 class TransactionDetailsModal extends StatefulWidget {
   final dynamic transaction;
@@ -542,8 +543,8 @@ class _TransactionDetailsModalState extends State<TransactionDetailsModal> {
       case 'YEARLY':
         if (dayOfYear != null) {
           final currentYear = DateTime.now().year;
-          final date = DateTime(currentYear, 1, 1).add(Duration(days: dayOfYear - 1));
-          description = 'Annuel (${date.day}/${date.month})';
+          final dayMonth = RecurrenceOptionsWidget.dayOfYearToDayMonth(currentYear, dayOfYear);
+          description = 'Annuel ($dayMonth)';
         } else {
           description = 'Annuel';
         }
@@ -598,7 +599,12 @@ class _TransactionDetailsModalState extends State<TransactionDetailsModal> {
       case 'YEARLY':
         if (dayOfYear != null) {
           final currentYear = DateTime.now().year;
-          final date = DateTime(currentYear, 1, 1).add(Duration(days: dayOfYear - 1));
+          final dayMonth = RecurrenceOptionsWidget.dayOfYearToDayMonth(currentYear, dayOfYear);
+          // dayMonth est "jour/mois" (ex: "3/3") ; affichage lisible avec le mois en lettres si besoin
+          final parts = dayMonth.split('/');
+          final day = int.tryParse(parts[0]) ?? 0;
+          final month = int.tryParse(parts[1]) ?? 1;
+          final date = DateTime(currentYear, month, day);
           final dateFormatter = DateFormat('dd MMMM', 'fr');
           description = 'Cette transaction se répète le ${dateFormatter.format(date)} de chaque année';
         } else {

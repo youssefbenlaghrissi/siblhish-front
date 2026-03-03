@@ -261,7 +261,6 @@ class _EditGoalModalState extends State<EditGoalModal> {
                         labelText: 'Description (optionnel)',
                         prefixIcon: Icon(Icons.description_rounded),
                       ),
-                      maxLines: 2,
                     ),
                     const SizedBox(height: 20),
 

@@ -32,6 +32,34 @@ class RecurrenceOptionsWidget extends StatefulWidget {
     this.weeklyDaysErrorText,
   });
 
+  /// Convertit un jour de l'année (1..366) en "jour/mois" pour affichage (sans fuseau).
+  /// À utiliser partout (détails, modifier, etc.) pour rester cohérent.
+  static String dayOfYearToDayMonth(int year, int dayOfYear) {
+    final date = _dateFromDayOfYear(year, dayOfYear);
+    return '${date.day}/${date.month}';
+  }
+
+  /// Transforme un jour de l'année (1..365/366) en (année, mois, jour) sans fuseau
+  static DateTime _dateFromDayOfYear(int year, int dayOfYear) {
+    const monthLengthsCommon = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    final isLeap = (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0);
+    final monthLengths = List<int>.from(monthLengthsCommon);
+    if (isLeap) monthLengths[1] = 29;
+
+    int month = 1;
+    int remaining = dayOfYear;
+    for (final length in monthLengths) {
+      if (remaining > length) {
+        remaining -= length;
+        month++;
+      } else {
+        break;
+      }
+    }
+    final day = remaining;
+    return DateTime(year, month, day);
+  }
+
   @override
   State<RecurrenceOptionsWidget> createState() => _RecurrenceOptionsWidgetState();
 }
@@ -46,9 +74,23 @@ class _RecurrenceOptionsWidgetState extends State<RecurrenceOptionsWidget> {
   final List<String> _weekDays = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
 
   static int _defaultDayOfYear() {
+    // Calcul purement calendaire (sans notion de fuseau horaire)
     final now = DateTime.now();
-    final startOfYear = DateTime(now.year, 1, 1);
-    return now.difference(startOfYear).inDays + 1;
+    return _computeDayOfYear(now.year, now.month, now.day);
+  }
+
+  /// Calcule le rang du jour dans l'année (1..365/366) sans utiliser les heures
+  static int _computeDayOfYear(int year, int month, int day) {
+    const monthLengthsCommon = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    final isLeap = (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0);
+    final monthLengths = List<int>.from(monthLengthsCommon);
+    if (isLeap) monthLengths[1] = 29;
+
+    int dayOfYear = day;
+    for (int m = 0; m < month - 1; m++) {
+      dayOfYear += monthLengths[m];
+    }
+    return dayOfYear;
   }
 
   @override
@@ -91,7 +133,7 @@ class _RecurrenceOptionsWidgetState extends State<RecurrenceOptionsWidget> {
 
   String _formatDayOfYear(int dayOfYear) {
     final currentYear = DateTime.now().year;
-    final date = DateTime(currentYear, 1, 1).add(Duration(days: dayOfYear - 1));
+    final date = RecurrenceOptionsWidget._dateFromDayOfYear(currentYear, dayOfYear);
     return '${date.day}/${date.month}';
   }
 
@@ -359,8 +401,7 @@ class _RecurrenceOptionsWidgetState extends State<RecurrenceOptionsWidget> {
             onTap: () async {
               // Convertir le jour de l'année en date pour le sélecteur
               final currentYear = DateTime.now().year;
-              final selectedDate = DateTime(currentYear, 1, 1)
-                  .add(Duration(days: _dayOfYear - 1));
+              final selectedDate = RecurrenceOptionsWidget._dateFromDayOfYear(currentYear, _dayOfYear);
               
               final picked = await showDatePicker(
                 context: context,
@@ -369,8 +410,11 @@ class _RecurrenceOptionsWidgetState extends State<RecurrenceOptionsWidget> {
                 lastDate: DateTime(currentYear, 12, 31),
               );
               if (picked != null) {
-                final startOfYear = DateTime(picked.year, 1, 1);
-                final newDayOfYear = picked.difference(startOfYear).inDays + 1;
+                final newDayOfYear = _computeDayOfYear(
+                  picked.year,
+                  picked.month,
+                  picked.day,
+                );
                 setState(() {
                   _dayOfYear = newDayOfYear;
                   widget.onDayOfYearChanged(_dayOfYear);
