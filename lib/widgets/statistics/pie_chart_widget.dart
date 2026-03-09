@@ -210,7 +210,7 @@ class PieChartWidget extends StatelessWidget {
           titleStyle: GoogleFonts.poppins(
             fontSize: 12,
             fontWeight: FontWeight.bold,
-            color: Colors.black, // Couleur noire pour le pourcentage
+            color: Colors.black,
           ),
         ),
       );
@@ -226,7 +226,7 @@ class PieChartWidget extends StatelessWidget {
           titleStyle: GoogleFonts.poppins(
             fontSize: 12,
             fontWeight: FontWeight.bold,
-            color: Colors.black, // Couleur noire pour le pourcentage
+            color: Colors.black,
           ),
         ),
       );

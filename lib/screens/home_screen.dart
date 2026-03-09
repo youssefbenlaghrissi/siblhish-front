@@ -34,7 +34,7 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   int _unreadNotificationsCount = 0;
   bool _homeDataLoaded = false;
   bool _isLoadingHomeData = false;
@@ -76,6 +76,8 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    // Observer le cycle de vie de l'app pour arrêter/redémarrer le timer en arrière-plan
+    WidgetsBinding.instance.addObserver(this);
     // Si l'écran est visible au démarrage
     if (widget.isVisible) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -88,6 +90,30 @@ class _HomeScreenState extends State<HomeScreen> {
           _startPeriodicNotificationCheck();
         }
       });
+    }
+  }
+
+  @override
+  void dispose() {
+    // Arrêter le timer et retirer l'observer
+    _stopPeriodicNotificationCheck();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.resumed) {
+      // L'app revient au premier plan : relancer le timer uniquement si l'onglet Home est visible
+      if (mounted && widget.isVisible) {
+        _startPeriodicNotificationCheck();
+      }
+    } else if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.detached) {
+      // L'app passe en arrière-plan / inactive : arrêter le timer pour ne plus appeler l'API
+      _stopPeriodicNotificationCheck();
     }
   }
 
@@ -154,12 +180,6 @@ class _HomeScreenState extends State<HomeScreen> {
       // Changer l'onglet vers Transactions (index 1)
       mainScreenState.changeTab(1);
     }
-  }
-
-  @override
-  void dispose() {
-    _stopPeriodicNotificationCheck();
-    super.dispose();
   }
 
   Timer? _notificationCheckTimer;
@@ -1438,14 +1458,17 @@ class _ScheduledPaymentsSection extends StatelessWidget {
               ),
             )
           else
-            ...payments.map((payment) => _ScheduledPaymentCard(
-                  payment: payment,
-                  category: categories
-                      .where((c) => c.id == payment.categoryId)
-                      .firstOrNull,
-                  onMarkAsPaid: () => onMarkAsPaid(payment.id),
-                  onDelete: () => onDelete(payment.id),
-                )),
+            ...payments.map(
+              (payment) => _ScheduledPaymentCard(
+                key: ValueKey(payment.id),
+                payment: payment,
+                category: categories
+                    .where((c) => c.id == payment.categoryId)
+                    .firstOrNull,
+                onMarkAsPaid: () => onMarkAsPaid(payment.id),
+                onDelete: () => onDelete(payment.id),
+              ),
+            ),
         ],
       ),
     );
@@ -1459,6 +1482,7 @@ class _ScheduledPaymentCard extends StatefulWidget {
   final VoidCallback onDelete;
 
   const _ScheduledPaymentCard({
+    super.key,
     required this.payment,
     required this.category,
     required this.onMarkAsPaid,

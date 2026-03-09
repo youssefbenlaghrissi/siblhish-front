@@ -264,10 +264,17 @@ class _RecurrenceOptionsWidgetState extends State<RecurrenceOptionsWidget> {
           const SizedBox(height: 10),
           InkWell(
             onTap: () async {
+              // Dernier jour du mois courant si aucune date limite encore choisie
+              final now = DateTime.now();
+              final lastDayOfCurrentMonth = DateTime(now.year, now.month + 1, 0);
+              // Autoriser les dates passées pour pouvoir modifier une date limite déjà passée
+              final firstDate = widget.startDate != null
+                  ? DateTime(widget.startDate!.year, widget.startDate!.month, widget.startDate!.day)
+                  : DateTime(now.year - 10, 1, 1);
               final picked = await showDatePicker(
                 context: context,
-                initialDate: _endDate ?? DateTime.now().add(const Duration(days: 30)),
-                firstDate: DateTime.now(),
+                initialDate: _endDate ?? lastDayOfCurrentMonth,
+                firstDate: firstDate,
                 lastDate: DateTime(2100),
               );
               if (picked != null) {

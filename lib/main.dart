@@ -20,6 +20,7 @@ import 'screens/profile_screen.dart';
 import 'screens/transactions_screen.dart';
 import 'providers/budget_provider.dart';
 import 'theme/app_theme.dart';
+import 'app_navigation.dart';
 import 'services/push_notification_service.dart';
 
 void main() async {
@@ -64,6 +65,7 @@ class SiblhishApp extends StatelessWidget {
     return ChangeNotifierProvider(
       create: (_) => BudgetProvider(),
       child: MaterialApp(
+        navigatorKey: appNavigatorKey,
         title: 'Siblhish',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.lightTheme,

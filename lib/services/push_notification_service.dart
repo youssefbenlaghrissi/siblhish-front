@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'api_service.dart';
+import '../app_navigation.dart';
 
 /// Service pour gérer les notifications push Firebase Cloud Messaging (FCM)
 class PushNotificationService {
@@ -218,11 +220,10 @@ class PushNotificationService {
     );
   }
 
-  /// Gérer le clic sur une notification
+  /// Gérer le clic sur une notification (app en arrière-plan ou fermée)
   static void _handleNotificationTap(RemoteMessage message) {
-    // Vous pouvez ajouter ici la logique pour naviguer vers une page spécifique
-    // selon le type de notification (message.data['type'])
     debugPrint('📬 Données de la notification: ${message.data}');
+    openNotificationsScreen();
   }
 
   /// Définir l'ID utilisateur actuel (appelé avant initialize() pour que le token FCM soit envoyé au backend)

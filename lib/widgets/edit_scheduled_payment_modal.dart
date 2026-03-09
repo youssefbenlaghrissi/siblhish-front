@@ -97,11 +97,20 @@ class _EditScheduledPaymentModalState extends State<EditScheduledPaymentModal> {
   }
 
   Future<void> _selectDate() async {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    // En modification, autoriser les dates passées pour garder ou changer la date d'échéance
+    final firstDate = today.subtract(const Duration(days: 365 * 2));
+    final lastDate = today.add(const Duration(days: 365 * 5));
     final picked = await showDatePicker(
       context: context,
-      initialDate: _selectedDate,
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 365 * 5)),
+      initialDate: _selectedDate.isBefore(firstDate)
+          ? firstDate
+          : _selectedDate.isAfter(lastDate)
+              ? lastDate
+              : _selectedDate,
+      firstDate: firstDate,
+      lastDate: lastDate,
     );
     if (picked != null) {
       setState(() {
