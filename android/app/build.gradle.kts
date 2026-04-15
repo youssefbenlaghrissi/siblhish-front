@@ -6,6 +6,8 @@ plugins {
     id("com.google.gms.google-services")
 }
 
+import java.util.Properties
+
 android {
     namespace = "ma.siblhish"
     compileSdk = flutter.compileSdkVersion
@@ -32,11 +34,34 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        // Optional: use keystore.properties for real release signing if present
+        val keystorePropertiesFile = rootProject.file("keystore.properties")
+        if (keystorePropertiesFile.exists()) {
+            val keystoreProperties = Properties().apply {
+                keystorePropertiesFile.inputStream().use { load(it) }
+            }
+            create("release") {
+                keyAlias = keystoreProperties["keyAlias"] as String
+                keyPassword = keystoreProperties["keyPassword"] as String
+                storeFile = file(keystoreProperties["storeFile"] as String)
+                storePassword = keystoreProperties["storePassword"] as String
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            // Enable shrinking/obfuscation for production builds
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
+
+            // Prefer real release signing when configured, otherwise fallback to debug (NOT for Play Store)
+            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
         }
     }
 }

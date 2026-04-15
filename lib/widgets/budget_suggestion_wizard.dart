@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../providers/budget_provider.dart';
@@ -19,6 +20,10 @@ class BudgetSuggestionWizard extends StatefulWidget {
 class _BudgetSuggestionWizardState extends State<BudgetSuggestionWizard> {
   int _currentStep = 0;
   final PageController _pageController = PageController();
+
+  void _log(String message) {
+    if (kDebugMode) debugPrint('[BudgetSuggestionWizard] $message');
+  }
 
   // Step 1: Revenu et situation
   final TextEditingController _incomeController = TextEditingController();
@@ -124,18 +129,14 @@ class _BudgetSuggestionWizardState extends State<BudgetSuggestionWizard> {
   }
 
   Future<void> _submit() async {
-    print('🔵 _submit() appelé');
+    _log('_submit() appelé');
     
     if (_isLoading) {
-      print('⚠️ Déjà en cours de chargement');
+      _log('Déjà en cours de chargement');
       return;
     }
     
-    print('📝 Données:');
-    print('   - Revenu: ${_incomeController.text}');
-    print('   - Situation: $_selectedSituation');
-    print('   - Localisation: $_selectedLocation');
-    print('   - Catégories: ${_selectedCategories.length}');
+    _log('Données: revenu=${_incomeController.text}, situation=$_selectedSituation, localisation=$_selectedLocation, categories=${_selectedCategories.length}');
     
     setState(() {
       _isLoading = true;
@@ -144,17 +145,17 @@ class _BudgetSuggestionWizardState extends State<BudgetSuggestionWizard> {
     try {
       final income = double.tryParse(_incomeController.text.trim());
       if (income == null || income <= 0) {
-        print('❌ Revenu invalide');
+        _log('Revenu invalide');
         throw Exception('Veuillez entrer un revenu valide');
       }
       
       if (_selectedSituation == null || _selectedLocation == null) {
-        print('❌ Situation ou localisation manquante');
+        _log('Situation ou localisation manquante');
         throw Exception('Veuillez sélectionner votre situation et localisation');
       }
       
       if (_selectedCategories.isEmpty) {
-        print('❌ Aucune catégorie sélectionnée');
+        _log('Aucune catégorie sélectionnée');
         throw Exception('Veuillez sélectionner au moins une catégorie');
       }
       
@@ -164,13 +165,13 @@ class _BudgetSuggestionWizardState extends State<BudgetSuggestionWizard> {
             try {
               return int.parse(id);
             } catch (e) {
-              print('❌ Erreur parsing ID: $id');
+              _log('Erreur parsing ID: $id');
               throw Exception('Erreur lors de la conversion des catégories');
             }
           })
           .toList();
       
-      print('📡 Appel API avec ${categoryIds.length} catégories: $categoryIds');
+      _log('Appel API avec ${categoryIds.length} catégories: $categoryIds');
       
       // Appeler l'API
       final result = await BudgetSuggestionService.suggestBudgets(
@@ -180,10 +181,10 @@ class _BudgetSuggestionWizardState extends State<BudgetSuggestionWizard> {
         categoryIds: categoryIds,
       );
       
-      print('✅ Réponse API reçue: ${result.keys}');
+      _log('Réponse API reçue: ${result.keys}');
       
       if (mounted) {
-        print('🚀 Navigation vers l\'écran de résultats');
+        _log('Navigation vers l\'écran de résultats');
         Navigator.pop(context);
         Navigator.push(
           context,
@@ -195,11 +196,11 @@ class _BudgetSuggestionWizardState extends State<BudgetSuggestionWizard> {
           ),
         );
       } else {
-        print('⚠️ Widget non monté, navigation annulée');
+        _log('Widget non monté, navigation annulée');
       }
     } catch (e, stackTrace) {
-      print('❌ ERREUR: $e');
-      print('Stack trace: $stackTrace');
+      _log('ERREUR: $e');
+      _log('Stack trace: $stackTrace');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -216,7 +217,7 @@ class _BudgetSuggestionWizardState extends State<BudgetSuggestionWizard> {
         setState(() {
           _isLoading = false;
         });
-        print('✅ État de chargement réinitialisé');
+        _log('État de chargement réinitialisé');
       }
     }
   }

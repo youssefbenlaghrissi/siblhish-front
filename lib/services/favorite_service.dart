@@ -126,8 +126,7 @@ class FavoriteService {
     }
 
     // Ajouter/mettre à jour les favoris avec leur ordre
-    // La réponse POST contient déjà les favoris mis à jour, on peut la retourner
-    final updatedFavorites = await addFavorites(userId, newFavorites);
+    await addFavorites(userId, newFavorites);
     
     // Retourner les IDs numériques pour cohérence
     return numericCardIds;

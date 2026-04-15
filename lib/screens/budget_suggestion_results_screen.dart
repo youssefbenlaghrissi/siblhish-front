@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -301,13 +302,17 @@ class _BudgetSuggestionResultsScreenState extends State<BudgetSuggestionResultsS
           await BudgetService.deleteBudgetsBatch(budgetsToDelete);
         } catch (e) {
           // Si la suppression batch échoue, essayer de supprimer un par un (fallback)
-          print('Erreur lors de la suppression batch, tentative individuelle: $e');
+          if (kDebugMode) {
+            debugPrint('[BudgetSuggestionResults] Batch delete failed, fallback individual: $e');
+          }
           for (var budgetId in budgetsToDelete) {
             try {
               await budgetProvider.deleteBudget(budgetId);
             } catch (e2) {
               // Ignorer les erreurs de suppression (peut-être déjà supprimé)
-              print('Erreur lors de la suppression du budget $budgetId: $e2');
+              if (kDebugMode) {
+                debugPrint('[BudgetSuggestionResults] Delete budget $budgetId failed: $e2');
+              }
             }
           }
         }

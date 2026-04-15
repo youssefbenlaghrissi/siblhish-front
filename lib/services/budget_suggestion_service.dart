@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../config/api_config.dart';
 
@@ -17,9 +18,11 @@ class BudgetSuggestionService {
       'location': location,
       'categoryIds': categoryIds,
     };
-    
-    print('🌐 API POST: $url');
-    print('📦 Body: $body');
+
+    if (kDebugMode) {
+      debugPrint('[BudgetSuggestionService] POST $url');
+      debugPrint('[BudgetSuggestionService] Body: $body');
+    }
     
     try {
       final response = await http.post(
@@ -28,25 +31,27 @@ class BudgetSuggestionService {
         body: json.encode(body),
       ).timeout(ApiConfig.timeout);
 
-      print('📥 Status Code: ${response.statusCode}');
-      print('📥 Response Body: ${response.body.substring(0, response.body.length > 200 ? 200 : response.body.length)}...');
+      if (kDebugMode) {
+        debugPrint('[BudgetSuggestionService] Status: ${response.statusCode}');
+        debugPrint('[BudgetSuggestionService] Response: ${response.body.substring(0, response.body.length > 200 ? 200 : response.body.length)}...');
+      }
 
       if (response.statusCode == 200) {
         final jsonResponse = json.decode(response.body);
         if (jsonResponse['status'] == 'success') {
-          print('✅ Succès - Données reçues');
+          if (kDebugMode) debugPrint('[BudgetSuggestionService] Success');
           return jsonResponse['data'];
         } else {
-          print('❌ Erreur dans la réponse: ${jsonResponse['message']}');
+          if (kDebugMode) debugPrint('[BudgetSuggestionService] Error: ${jsonResponse['message']}');
           throw Exception(jsonResponse['message'] ?? 'Erreur lors du calcul des budgets');
         }
       } else {
         final errorBody = json.decode(response.body);
-        print('❌ Erreur serveur ${response.statusCode}: ${errorBody['message']}');
+        if (kDebugMode) debugPrint('[BudgetSuggestionService] Server error ${response.statusCode}: ${errorBody['message']}');
         throw Exception(errorBody['message'] ?? 'Erreur serveur: ${response.statusCode}');
       }
     } catch (e) {
-      print('❌ Exception dans suggestBudgets: $e');
+      if (kDebugMode) debugPrint('[BudgetSuggestionService] Exception: $e');
       rethrow;
     }
   }
