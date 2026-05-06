@@ -245,6 +245,11 @@ class BudgetDistributionPieChartWidget extends StatelessWidget {
           title: '${item.percentage.toStringAsFixed(2)}%',
           color: categoryColor,
           radius: 60,
+          titleStyle: GoogleFonts.poppins(
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+            color: Colors.black,
+          ),
         ),
       );
     }
@@ -256,6 +261,11 @@ class BudgetDistributionPieChartWidget extends StatelessWidget {
           title: '${((otherTotal / total) * 100).toStringAsFixed(2)}%',
           color: Colors.grey,
           radius: 60,
+          titleStyle: GoogleFonts.poppins(
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+            color: Colors.black,
+          ),
         ),
       );
     }

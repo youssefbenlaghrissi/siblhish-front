@@ -76,10 +76,6 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  Future<void> _continueAsGuest() async {
-    Navigator.of(context).pushReplacementNamed('/main');
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -229,21 +225,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                 ],
-              ),
-              
-              const SizedBox(height: 16),
-              
-              // Continue as Guest
-              TextButton(
-                onPressed: _isLoading ? null : _continueAsGuest,
-                child: Text(
-                  'Continuer sans compte',
-                  style: GoogleFonts.poppins(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                    color: AppTheme.primaryColor,
-                  ),
-                ),
               ),
               
               const Spacer(),

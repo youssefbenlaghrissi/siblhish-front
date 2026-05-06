@@ -212,8 +212,8 @@ class AuthService {
             '1. Allez sur Google Cloud Console → APIs & Services → Credentials\n'
             '2. Cliquez sur "+ CREATE CREDENTIALS" → "OAuth client ID"\n'
             '3. Type: "Android"\n'
-            '4. Package name: ma.siblhish\n'
-            '5. SHA-1: 63:3D:D0:8F:A9:29:88:39:C8:86:DC:62:B0:3B:70:6D:DC:AC:F6:84\n'
+            '4. Package name: ma.siblhish.app\n'
+            '5. SHA-1 (debug et release) : keytool -list -v -keystore <votre-keystore> -alias <alias>\n'
             '6. Créez et attendez 2-5 minutes\n\n'
             'Voir docs/CREER_OAUTH_CLIENT_ANDROID.md pour les instructions détaillées.';
       } else if (e.code == 'network_error') {
@@ -223,8 +223,8 @@ class AuthService {
             'Il faut créer un OAuth Client Android dans Google Cloud Console:\n'
             '1. Google Cloud Console → APIs & Services → Credentials\n'
             '2. "+ CREATE CREDENTIALS" → "OAuth client ID"\n'
-            '3. Type: "Android", Package: ma.siblhish\n'
-            '4. SHA-1: 63:3D:D0:8F:A9:29:88:39:C8:86:DC:62:B0:3B:70:6D:DC:AC:F6:84\n\n'
+            '3. Type: "Android", Package: ma.siblhish.app\n'
+            '4. SHA-1 (debug et release) : keytool -list -v -keystore <votre-keystore> -alias <alias>\n\n'
             'Voir docs/CREER_OAUTH_CLIENT_ANDROID.md pour les instructions complètes.';
       } else if (e.message != null && e.message!.contains('12500')) {
         errorMessage = 'Connexion annulée par l\'utilisateur.';

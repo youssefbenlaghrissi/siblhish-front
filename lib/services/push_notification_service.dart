@@ -32,16 +32,30 @@ class PushNotificationService {
       // 2. Vérifier le statut actuel des permissions système
       NotificationSettings currentSettings = await _firebaseMessaging.getNotificationSettings();
       
-      // Si utilisateur existant, utiliser le statut de la DB (ne pas redemander les permissions)
+      // Si utilisateur existant, utiliser le statut de la DB (ne pas redemander sans raison)
       if (!isNewUser && notificationsEnabledFromDB == true) {
         debugPrint('📱 Utilisateur existant avec notificationsEnabled=true, utilisation du statut existant');
         
-        // Vérifier que les permissions système sont toujours accordées
         if (currentSettings.authorizationStatus == AuthorizationStatus.authorized ||
             currentSettings.authorizationStatus == AuthorizationStatus.provisional) {
           // Permissions OK, continuer l'initialisation
+        } else if (currentSettings.authorizationStatus == AuthorizationStatus.notDetermined) {
+          // Android 13+ / première ouverture : notDetermined n'est pas un refus — il faut demander
+          debugPrint('📱 Permission notifications non déterminée, demande à l\'utilisateur...');
+          final requested = await _firebaseMessaging.requestPermission(
+            alert: true,
+            badge: true,
+            sound: true,
+            provisional: false,
+          );
+          if (requested.authorizationStatus != AuthorizationStatus.authorized &&
+              requested.authorizationStatus != AuthorizationStatus.provisional) {
+            debugPrint('⚠️ Permissions refusées après demande, mise à jour notificationsEnabled à false');
+            await _syncNotificationsEnabledToDB(false);
+            return;
+          }
         } else {
-          // Permissions refusées, mettre à jour la DB
+          // denied ou autre : refus explicite
           debugPrint('⚠️ Permissions système refusées, mise à jour notificationsEnabled à false');
           await _syncNotificationsEnabledToDB(false);
           return;
